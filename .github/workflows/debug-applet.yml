@@ -9,21 +9,11 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      - name: Micro applets
+      - name: Run the installer's AppleScript as a plain script so that errors are printed instead of shown in a dialog
         run: |
-          mkdir -p /tmp/p && cd /tmp/p
           tmo() { t=$1; shift; "$@" & p=$!; ( sleep $t; kill -9 $p 2>/dev/null ) & w=$!; wait $p; rc=$?; kill $w 2>/dev/null; return $rc; }
-          osacompile -o a1.app -e 'on run' -e 'do shell script "echo ran > /tmp/p/a1.txt"' -e 'end run'
-          ( tmo 40 a1.app/Contents/MacOS/applet ; echo "a1 rc=$?" ) 2>&1; cat a1.txt || true
-          osacompile -o a2.app -e 'on run' -e 'set progress total steps to 10' -e 'set progress completed steps to 1' -e 'set progress description to "x"' -e 'delay 1' -e 'do shell script "echo progress > /tmp/p/a2.txt"' -e 'end run'
-          ( tmo 40 a2.app/Contents/MacOS/applet ; echo "a2 rc=$?" ) 2>&1; cat a2.txt || true
-          osacompile -o a3.app -e 'on run' -e 'set v to system attribute "WM_AUTOMATED"' -e 'do shell script "echo [" & v & "] > /tmp/p/a3.txt"' -e 'end run'
-          ( WM_AUTOMATED=1 tmo 40 a3.app/Contents/MacOS/applet ; echo "a3 rc=$?" ) 2>&1; cat a3.txt || true
-          echo "--- session"
-          id; launchctl managername 2>&1 || true; ls -l /dev/console; pgrep -l WindowServer || true
-          echo "--- the real applet, 60 s limit"
-          echo '{"version":"9.9.9","dmg":{"size":1,"sha256":"00"}}' > /tmp/p/pins.json
-          bash "$GITHUB_WORKSPACE/bootstrap/mac-intel/build.sh" /tmp/p/pins.json /tmp/p/built > /dev/null
-          ( WM_AUTOMATED=1 WM_DEST=/tmp/p/dest WM_ENV="MLT_TEST=1" tmo 60 "/tmp/p/built/WhisperMedical Installer.app/Contents/MacOS/applet"; echo "real rc=$?" ) 2>&1 | tail -5
-          echo "--- run via open"
-          ( WM_AUTOMATED=1 tmo 40 open -W "/tmp/p/built/WhisperMedical Installer.app"; echo "open rc=$?" ) 2>&1 | tail -3
+          mkdir -p /tmp/p/dest
+          sed "s#POSIX path of (path to resource \"install.sh\")#\"$GITHUB_WORKSPACE/bootstrap/mac-intel/install.sh\"#" bootstrap/mac-intel/Installer.applescript > /tmp/p/inst.applescript
+          grep -n "install.sh" /tmp/p/inst.applescript | head -3
+          printf 'PIN_VERSION=9.9.9\nPIN_DMG_SIZE=1\nPIN_DMG_SHA256=00\n' > bootstrap/mac-intel/pins.env
+          ( WM_AUTOMATED=1 WM_DEST=/tmp/p/dest WM_ENV="MLT_TEST=1" tmo 60 osascript /tmp/p/inst.applescript; echo "osascript rc=$?" ) 2>&1 | tail -15
