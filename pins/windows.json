@@ -6,7 +6,6 @@
     "sha256": "2597d1a48e67a78fc826ae629ad575e26ebf4a13e2d691bd7023a596afdca18f"
   },
   "source_build": {
-    "commit": "8fd9bb8",
     "tests": {
       "passed": 1247,
       "failed": 0,
