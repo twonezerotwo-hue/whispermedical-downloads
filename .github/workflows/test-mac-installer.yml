@@ -29,10 +29,13 @@ jobs:
           cat "out/WhisperMedical Installer.app/Contents/Resources/pins.env"
           /usr/bin/codesign -dv "out/WhisperMedical Installer.app" 2>&1 | head -5
           plutil -lint "out/WhisperMedical Installer.app/Contents/Info.plist"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
       - name: Installer script tests (fake payload)
         run: |
-          python3 -m pip install --quiet pytest
-          python3 -m pytest tests/test_mac_installer.py -q
+          python -m pip install --quiet pytest
+          python -m pytest tests/test_mac_installer.py -q
       - uses: actions/upload-artifact@v4
         with:
           name: mac-installer-test-build
