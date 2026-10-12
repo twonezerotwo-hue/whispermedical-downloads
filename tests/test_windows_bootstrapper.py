@@ -141,6 +141,15 @@ def test_the_whole_path_downloads_verifies_places_the_model_runs_the_installer_a
     assert not list((tmp_path / "model").glob("*.partial"))
 
 
+def test_a_complete_release_that_is_still_being_verified_can_already_be_installed_by_the_installer(world, tmp_path):
+    srv = serve(world, status="uploaded")                                                  # the verification run itself installs from an "uploaded" release
+    try:
+        done, _ = run(world, srv, tmp_path)
+    finally:
+        srv.close()
+    assert done.returncode == 0, done.stdout + done.stderr
+
+
 def test_cut_connections_resume_where_they_stopped(world, tmp_path):
     srv = serve(world)
     srv.cut = {"/setup.exe": 2, "/m/model.bin.part001": 2, "/m/model.bin.part002": 1}

@@ -171,7 +171,7 @@ namespace WhisperMedical
             string json = FetchText(ManifestUrl);
             Dictionary<string, object> m = new JavaScriptSerializer { MaxJsonLength = 1 << 24 }.Deserialize<Dictionary<string, object>>(json);
             Dictionary<string, object> w = Obj(m, "windows");
-            if (w == null || Str(w, "status") != "ready")
+            if (w == null || (Str(w, "status") != "ready" && Str(w, "status") != "uploaded"))
                 throw new InstallerException("This download is not available yet. Please try again later.", false);
             Dictionary<string, object> payload = Obj(w, "payload");
             Asset setup = ReadAsset(Obj(payload, "setup"));
