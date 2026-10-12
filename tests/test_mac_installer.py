@@ -161,3 +161,25 @@ def test_a_manifest_that_is_not_ready_or_not_for_this_installer_stops_before_any
         srv.close()
     assert done.returncode != 0 and expected in progress.read_text().lower()
     assert not (dest / APP).exists() and not [r for r in srv.requests if "part" in r[0]]
+
+
+def test_the_installer_app_shows_progress_runs_the_script_and_installs(image, tmp_path):
+    """The compiled "WhisperMedical Installer.app" itself (AppleScript window code), driven in its automated mode against the local fake server."""
+    srv = Server({})
+    make(srv, image)
+    pins = tmp_path / "pins.json"
+    pins.write_text(json.dumps({"version": "9.9.9", "dmg": {"size": len(image["data"]), "sha256": image["sha"]}}))
+    out = tmp_path / "built"
+    try:
+        built = subprocess.run(["/bin/bash", str(ROOT / "bootstrap" / "mac-intel" / "build.sh"), str(pins), str(out)], capture_output=True, text=True, timeout=300)
+        assert built.returncode == 0, built.stdout + built.stderr
+        dest = tmp_path / "Applications"
+        dest.mkdir()
+        env = dict(os.environ, WM_AUTOMATED="1", WM_DEST=str(dest),
+                   WM_ENV=f"MLT_TEST=1 MLT_MANIFEST_URL={srv.url('/manifest.json')} MLT_CACHE={tmp_path / 'cache'}")
+        done = subprocess.run([str(out / "WhisperMedical Installer.app" / "Contents" / "MacOS" / "applet")], capture_output=True, text=True, env=env, timeout=300)
+    finally:
+        srv.close()
+    assert done.returncode == 0, done.stdout + done.stderr
+    assert (dest / APP / "Contents" / "Info.plist").read_text() == "<plist/>"
+    assert not (tmp_path / "cache").exists()

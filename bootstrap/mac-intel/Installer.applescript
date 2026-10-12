@@ -6,10 +6,15 @@ on run
 	-- a private folder of this user for the progress messages of install.sh
 	set workFolder to do shell script "/usr/bin/mktemp -d"
 	set progressFile to workFolder & "/progress.txt"
-	-- WM_AUTOMATED=1 (set by the automated release test only) answers the two confirmation dialogs by itself and installs into WM_DEST without opening the app
+	-- WM_AUTOMATED=1 (set by the automated tests only; WM_ENV = extra settings for the script) answers the two confirmation dialogs by itself and installs into WM_DEST without opening the app
 	set automated to ((system attribute "WM_AUTOMATED") is "1")
 	set extraArgs to ""
-	if automated then set extraArgs to " --no-open --dest " & quoted form of (system attribute "WM_DEST")
+	set envPrefix to ""
+	if automated then
+		set extraArgs to " --no-open --dest " & quoted form of (system attribute "WM_DEST")
+		set testEnv to system attribute "WM_ENV"
+		if testEnv is not "" then set envPrefix to "env " & testEnv & " "
+	end if
 
 	if not automated then
 		try
@@ -20,7 +25,7 @@ on run
 	end if
 
 	do shell script "rm -f " & quoted form of progressFile & "; : > " & quoted form of progressFile
-	set pidText to do shell script "/bin/bash " & quoted form of scriptPath & " --progress-file " & quoted form of progressFile & extraArgs & " >/dev/null 2>&1 & echo $!"
+	set pidText to do shell script envPrefix & "/bin/bash " & quoted form of scriptPath & " --progress-file " & quoted form of progressFile & extraArgs & " >/dev/null 2>&1 & echo $!"
 
 	set progress total steps to 1000
 	set progress completed steps to 0
