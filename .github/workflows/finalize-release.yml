@@ -1,0 +1,321 @@
+name: finalize-release
+
+# Run after the big files of a platform have been uploaded (as a DRAFT release) by the release automation. For one platform it
+#   1. builds the small installer program and tests it,
+#   2. adds it to the draft release, checks that every file the manifest will list is there, and publishes the release,
+#   3. writes the platform's entry into release-manifest.json (status "uploaded" - complete, not yet announced),
+#   4. downloads the installer exactly as a visitor would (no token, no login) and runs the REAL installer on a clean machine: downloads, checks, installs,
+#      starts the program with the network blocked, transcribes a short public-domain clip,
+#   5. only then marks the platform "ready" - which is what enables the button on the download page.
+# Step 5 additionally needs the repository variable LEGAL_ACKNOWLEDGED=yes (the owner's confirmation of the open-source notices).
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: "windows | mac-intel"
+        type: choice
+        options: [windows, mac-intel]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: finalize-${{ inputs.platform }}
+  cancel-in-progress: false
+
+env:
+  JFK_URL: https://github.com/openai/whisper/raw/main/tests/jfk.flac
+  PAGE: https://twonezerotwo-hue.github.io/whispermedical-downloads
+
+jobs:
+  # ================================================================================================================== Windows
+  windows-build:
+    if: ${{ inputs.platform == 'windows' }}
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Build the installer program with the pinned checksums and test it
+        shell: bash
+        run: |
+          python -m pip install --quiet pytest
+          SHA=$(python -c "import json;print(json.load(open('pins/windows.json'))['setup']['sha256'])")
+          SIZE=$(python -c "import json;print(json.load(open('pins/windows.json'))['setup']['size'])")
+          python bootstrap/windows/build.py --setup-sha256 "$SHA" --setup-size "$SIZE" --out dist/WhisperMedical-Installer-Windows.exe
+          python -m pytest tests/test_windows_bootstrapper.py tests/test_site_tools.py -q
+          python scripts/build_entries.py windows dist/WhisperMedical-Installer-Windows.exe > dist/entry.json
+          cat dist/entry.json | head -20
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: |
+            dist/WhisperMedical-Installer-Windows.exe
+            dist/entry.json
+
+  windows-publish:
+    needs: windows-build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-installer
+          path: dist
+      - name: Complete the release and publish it
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG=windows-v3.1.0
+          python3 - <<'EOF'
+          import json, subprocess, sys
+          pins = json.load(open("pins/windows.json"))
+          out = subprocess.run(["gh", "release", "view", "windows-v3.1.0", "--json", "assets", "--jq", ".assets | map({(.name): .size}) | add"], capture_output=True, text=True)
+          have = json.loads(out.stdout or "{}")
+          want = pins["setup"]
+          if have.get(want["name"]) != want["size"]:
+              sys.exit(f"the release does not hold the installer {want['name']} with {want['size']} bytes (found {have.get(want['name'])})")
+          EOF
+          gh release upload "$TAG" dist/WhisperMedical-Installer-Windows.exe licenses/THIRD_PARTY_LICENSES.txt licenses/MODEL_LICENSES.txt --clobber
+          gh release edit "$TAG" --draft=false --latest=false --title "WhisperMedical 3.1.0 - Windows (x64)" \
+            --notes "Download page: https://twonezerotwo-hue.github.io/whispermedical-downloads/ . Run WhisperMedical-Installer-Windows.exe; it fetches and checks everything else. You do not need to download the other files by hand."
+      - name: Write the manifest entry (uploaded, not yet announced)
+        run: |
+          python3 scripts/sitetool.py set-platform windows <(python3 -c "import json;print(json.dumps(json.load(open('dist/entry.json'))))" > /tmp/e.json; echo /tmp/e.json)
+          git config user.name "WhisperMedical"; git config user.email "twonezerotwo-hue@users.noreply.github.com"
+          git add release-manifest.json latest
+          git commit -m "Manifest: Windows 3.1.0 uploaded (verification running)" || true
+          git pull --rebase origin main && git push origin HEAD:main
+
+  windows-verify:
+    needs: windows-publish
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - name: Wait until the public manifest shows the new entry (GitHub Pages)
+        shell: pwsh
+        run: |
+          for ($i = 0; $i -lt 40; $i++) {
+            try { $m = Invoke-RestMethod "$env:PAGE/release-manifest.json?x=$(Get-Random)"; if ($m.windows.bootstrapper.url) { break } } catch {}
+            Start-Sleep 15
+          }
+          if (-not $m.windows.bootstrapper.url) { throw "the manifest never showed the Windows entry" }
+          $m.windows | ConvertTo-Json -Depth 4 | Out-File manifest-windows.json
+          "BOOT_URL=$($m.windows.bootstrapper.url)" | Out-File -Append $env:GITHUB_ENV
+          "BOOT_SHA=$($m.windows.bootstrapper.sha256)" | Out-File -Append $env:GITHUB_ENV
+      - name: Download the installer like a visitor (no token) and check it
+        shell: pwsh
+        run: |
+          Remove-Item Env:GH_TOKEN, Env:GITHUB_TOKEN -ErrorAction SilentlyContinue
+          Invoke-WebRequest $env:BOOT_URL -OutFile boot.exe
+          $h = (Get-FileHash boot.exe -Algorithm SHA256).Hash.ToLower()
+          "downloaded boot.exe $((Get-Item boot.exe).Length) bytes sha256 $h"
+          if ($h -ne $env:BOOT_SHA) { throw "the installer program differs from the manifest" }
+      - name: Run the real installer (downloads, verifies, installs)
+        shell: pwsh
+        run: |
+          $p = Start-Process .\boot.exe -ArgumentList '--console','--unattended','--no-launch' -Wait -PassThru -RedirectStandardOutput boot.out.txt -RedirectStandardError boot.err.txt
+          Get-Content boot.out.txt | Select-Object -Last 40
+          if ($p.ExitCode -ne 0) { Get-Content boot.err.txt; throw "installer exit code $($p.ExitCode)" }
+          $exe = "$env:ProgramFiles\Medical Lecture Transcriber\MedicalLectureTranscriber.exe"
+          if (-not (Test-Path $exe)) { throw "the program was not installed" }
+          $model = "$env:LOCALAPPDATA\MedicalLectureTranscriber\models\whisper-large-v3"
+          Get-ChildItem $model | Select-Object Name, Length | Format-Table
+          if (-not (Test-Path "$model\model.bin")) { throw "the speech model was not placed" }
+          if (Test-Path "$env:LOCALAPPDATA\WhisperMedicalInstaller\cache") { throw "temporary installer files were left behind" }
+      - name: The installed program works with the network blocked
+        shell: pwsh
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          $exe = "$env:ProgramFiles\Medical Lecture Transcriber\MedicalLectureTranscriber.exe"
+          New-NetFirewallRule -DisplayName "block-whispermedical" -Direction Outbound -Action Block -Program $exe | Out-Null
+          & $exe --selftest selftest.json
+          $r = Get-Content selftest.json -Raw | ConvertFrom-Json
+          $r.checks | ForEach-Object { "{0,-18} {1} {2}" -f $_.name, $(if ($_.ok) {'ok'} else {'FAIL'}), $_.detail.Substring(0, [Math]::Min(90, $_.detail.Length)) }
+          if (-not $r.ok) { throw "self-test failed" }
+          $model = ($r.checks | Where-Object name -eq 'Model discovery').detail
+          if ($model -notmatch 'Whisper Large-v3: installed') { throw "model not found: $model" }
+          Invoke-WebRequest $env:JFK_URL -OutFile jfk.flac
+          $env:MLT_ALLOW_MULTIPLE = "1"
+          $p = Start-Process $exe -ArgumentList '--autorun', "$PWD\jfk.flac", '--result', "$PWD\result.json", '--timeout', '1500', '--language', 'en' -Wait -PassThru
+          $res = Get-Content result.json -Raw | ConvertFrom-Json
+          $res | Select-Object state, device, compute_type, audio_seconds, output_dir | Format-List
+          if ($res.state -ne 'completed') { throw "transcription did not complete: $($res.state)" }
+          $text = (Get-Content (Join-Path $res.output_dir 'local_raw_transcript.txt') -Raw).ToLower()
+          "transcript: $text"
+          if ($text -notmatch 'ask not what your country can do for you') { throw "unexpected transcript" }
+          foreach ($f in 'local_clean_transcript.txt','medical_corrected_transcript.txt','correction_report.json','medical_quality_report.json') { if (-not (Test-Path (Join-Path $res.output_dir $f))) { throw "missing $f" } }
+          Remove-NetFirewallRule -DisplayName "block-whispermedical"
+
+  windows-ready:
+    needs: windows-verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Announce on the download page (needs the owner's licence confirmation)
+        env:
+          LEGAL: ${{ vars.LEGAL_ACKNOWLEDGED }}
+        run: |
+          if [ "$LEGAL" != "yes" ]; then
+            echo "::warning::Verified, but NOT announced: the owner has not confirmed the open-source notices (set the repository variable LEGAL_ACKNOWLEDGED=yes, then run this workflow's last job again)."
+            exit 0
+          fi
+          python3 scripts/sitetool.py set-status windows ready
+          git config user.name "WhisperMedical"; git config user.email "twonezerotwo-hue@users.noreply.github.com"
+          git add release-manifest.json latest
+          git commit -m "Windows 3.1.0 verified end to end: download button enabled" || true
+          git pull --rebase origin main && git push origin HEAD:main
+
+  # ================================================================================================================== Intel Mac
+  mac-build:
+    if: ${{ inputs.platform == 'mac-intel' }}
+    runs-on: macos-15-intel
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Build the installer app with the pinned checksums, test its script, make the entry
+        run: |
+          test "$(uname -m)" = "x86_64"
+          bash bootstrap/mac-intel/build.sh pins/mac-intel.json out
+          python -m pip install --quiet pytest
+          python -m pytest tests/test_mac_installer.py tests/test_site_tools.py -q
+          python scripts/build_entries.py mac-intel out/WhisperMedical-Installer-IntelMac.zip > out/entry.json
+          head -20 out/entry.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mac-installer
+          path: |
+            out/WhisperMedical-Installer-IntelMac.zip
+            out/entry.json
+
+  mac-publish:
+    needs: mac-build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/download-artifact@v4
+        with:
+          name: mac-installer
+          path: out
+      - name: Complete the release and publish it
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG=mac-intel-v3.1.0
+          python3 - <<'EOF'
+          import json, subprocess, sys
+          pins = json.load(open("pins/mac-intel.json"))
+          out = subprocess.run(["gh", "release", "view", "mac-intel-v3.1.0", "--json", "assets", "--jq", ".assets | map({(.name): .size}) | add"], capture_output=True, text=True)
+          have = json.loads(out.stdout or "{}")
+          missing = [p["name"] for p in pins["dmg"]["parts"] if have.get(p["name"]) != p["size"]]
+          if missing:
+              sys.exit("the release is missing or has wrong-sized pieces: " + ", ".join(missing))
+          EOF
+          gh release upload "$TAG" out/WhisperMedical-Installer-IntelMac.zip licenses/THIRD_PARTY_LICENSES.txt licenses/MODEL_LICENSES.txt --clobber
+          gh release edit "$TAG" --draft=false --latest=false --title "WhisperMedical 3.1.0 - Intel Mac" \
+            --notes "Download page: https://twonezerotwo-hue.github.io/whispermedical-downloads/ . Open WhisperMedical-Installer-IntelMac.zip, then the installer app inside; it fetches and checks everything else. Intel Macs only."
+      - name: Write the manifest entry (uploaded, not yet announced)
+        run: |
+          python3 -c "import json;print(json.dumps(json.load(open('out/entry.json'))))" > /tmp/e.json
+          python3 scripts/sitetool.py set-platform mac-intel /tmp/e.json
+          git config user.name "WhisperMedical"; git config user.email "twonezerotwo-hue@users.noreply.github.com"
+          git add release-manifest.json latest
+          git commit -m "Manifest: Intel Mac 3.1.0 uploaded (verification running)" || true
+          git pull --rebase origin main && git push origin HEAD:main
+
+  mac-verify:
+    needs: mac-publish
+    runs-on: macos-15-intel
+    timeout-minutes: 90
+    steps:
+      - name: Wait until the public manifest shows the new entry (GitHub Pages)
+        run: |
+          for i in $(seq 1 40); do
+            curl -fsS "$PAGE/release-manifest.json?x=$RANDOM" -o m.json && python3 -c "import json,sys;sys.exit(0 if json.load(open('m.json')).get('mac_intel',{}).get('bootstrapper',{}).get('url') else 1)" && break
+            sleep 15
+          done
+          python3 -c "import json;m=json.load(open('m.json'))['mac_intel'];print(m['bootstrapper']['url']);open('boot_url','w').write(m['bootstrapper']['url']);open('boot_sha','w').write(m['bootstrapper']['sha256'])"
+      - name: Download the installer like a visitor (no token, no login) and check it
+        run: |
+          unset GH_TOKEN GITHUB_TOKEN
+          curl -fL --proto '=https' -o WhisperMedical-Installer-IntelMac.zip "$(cat boot_url)"
+          test "$(shasum -a 256 WhisperMedical-Installer-IntelMac.zip | cut -d' ' -f1)" = "$(cat boot_sha)"
+          unzip -q WhisperMedical-Installer-IntelMac.zip
+          ls -la "WhisperMedical Installer.app/Contents/Resources"
+          cat "WhisperMedical Installer.app/Contents/Resources/pins.env"
+      - name: Run the real installer script (downloads about 3 GB, verifies, mounts, copies)
+        run: |
+          unset GH_TOKEN GITHUB_TOKEN
+          df -h /System/Volumes/Data | tail -1
+          bash "WhisperMedical Installer.app/Contents/Resources/install.sh" --dest "$RUNNER_TEMP/Applications" --no-open --progress-file "$RUNNER_TEMP/progress.txt"
+          tail -3 "$RUNNER_TEMP/progress.txt"
+          APP="$RUNNER_TEMP/Applications/Medical Lecture Transcriber.app"
+          test -d "$APP"
+          test ! -d "$HOME/Library/Caches/WhisperMedicalInstaller" || { echo "temporary files left behind"; exit 1; }
+          mount | grep -q "WhisperMedical" && { echo "image still mounted"; exit 1; } || true
+          echo "quarantine attribute: $(xattr -p com.apple.quarantine "$APP" 2>&1 | head -1)"
+          spctl --assess --type execute -vv "$APP" 2>&1 | head -2 || true
+      - name: The installed app works with the network blocked
+        run: |
+          APP="$RUNNER_TEMP/Applications/Medical Lecture Transcriber.app"
+          EXE="$APP/Contents/MacOS/MedicalLectureTranscriber"
+          export HOME_TEST="$RUNNER_TEMP/home"; mkdir -p "$HOME_TEST"
+          BLOCK='(version 1)(allow default)(deny network*)(allow network* (remote unix-socket))(allow network* (remote ip "localhost:*"))'
+          ! sandbox-exec -p "$BLOCK" python3 -c "import socket; socket.create_connection(('1.1.1.1',443),5)" 2>/dev/null || { echo "network block did not work"; exit 1; }
+          HOME="$HOME_TEST" QT_QPA_PLATFORM=offscreen MLT_SELFTEST_DEEP=1 sandbox-exec -p "$BLOCK" "$EXE" --selftest "$RUNNER_TEMP/selftest.json" || true
+          python3 - <<'EOF'
+          import json, os
+          r = json.load(open(os.environ["RUNNER_TEMP"] + "/selftest.json"))
+          for c in r["checks"]:
+              print(("ok  " if c["ok"] else "FAIL"), c["name"], c["detail"][:100])
+          assert r["ok"], "self-test failed"
+          model = next(c for c in r["checks"] if c["name"] == "Model discovery")["detail"]
+          assert "Whisper Large-v3: installed" in model, model
+          EOF
+          curl -fsSL "$JFK_URL" -o "$RUNNER_TEMP/jfk.flac"
+          HOME="$HOME_TEST" QT_QPA_PLATFORM=offscreen MLT_ALLOW_MULTIPLE=1 sandbox-exec -p "$BLOCK" "$EXE" --autorun "$RUNNER_TEMP/jfk.flac" --result "$RUNNER_TEMP/result.json" --timeout 1500 --language en || true
+          python3 - <<'EOF'
+          import json, os, pathlib
+          r = json.load(open(os.environ["RUNNER_TEMP"] + "/result.json"))
+          print({k: r.get(k) for k in ("state", "device", "compute_type", "audio_seconds")})
+          assert r["state"] == "completed", r
+          out = pathlib.Path(r["output_dir"])
+          text = (out / "local_raw_transcript.txt").read_text().lower()
+          print("transcript:", text)
+          assert "ask not what your country can do for you" in text
+          for f in ("local_clean_transcript.txt", "medical_corrected_transcript.txt", "correction_report.json", "medical_quality_report.json"):
+              assert (out / f).is_file(), f
+          models = pathlib.Path(os.environ["HOME_TEST"]) / "Library" / "Application Support" / "MedicalLectureTranscriber" / "models"
+          assert not models.exists() or not any(models.iterdir()), "a model was copied or downloaded into the user folder"
+          EOF
+
+  mac-ready:
+    needs: mac-verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Announce on the download page (needs the owner's licence confirmation)
+        env:
+          LEGAL: ${{ vars.LEGAL_ACKNOWLEDGED }}
+        run: |
+          if [ "$LEGAL" != "yes" ]; then
+            echo "::warning::Verified, but NOT announced: the owner has not confirmed the open-source notices (set the repository variable LEGAL_ACKNOWLEDGED=yes, then run this workflow's last job again)."
+            exit 0
+          fi
+          python3 scripts/sitetool.py set-status mac-intel ready
+          git config user.name "WhisperMedical"; git config user.email "twonezerotwo-hue@users.noreply.github.com"
+          git add release-manifest.json latest
+          git commit -m "Intel Mac 3.1.0 verified end to end: download button enabled" || true
+          git pull --rebase origin main && git push origin HEAD:main
