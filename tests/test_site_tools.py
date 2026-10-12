@@ -63,3 +63,32 @@ def test_the_audit_finds_private_material(tmp_path, name, text, expected):
 def test_the_audit_accepts_the_public_repo_and_noreply_addresses(tmp_path):
     (tmp_path / "a.txt").write_text("https://github.com/twonezerotwo-hue/whispermedical-downloads/issues and 1234+x@users.noreply.github.com", encoding="utf-8")
     assert audit_public.scan(tmp_path) == []
+
+
+def test_entries_follow_the_pins_and_never_say_ready(tmp_path):
+    import build_entries as be
+
+    boot = tmp_path / "WhisperMedical-Installer-Windows.exe"
+    boot.write_bytes(b"MZ" + b"0" * 100)
+    pins = json.loads((Path(be.ROOT) / "pins" / "windows.json").read_text(encoding="utf-8"))
+    layout = json.loads((Path(be.ROOT) / "scripts" / "model_parts.json").read_text(encoding="utf-8"))
+    w = be.windows_entry(pins, layout, boot)
+    assert w["status"] == "uploaded" and w["payload"]["setup"]["sha256"] == pins["setup"]["sha256"]
+    assert w["bootstrapper"]["url"].startswith("https://github.com/twonezerotwo-hue/whispermedical-downloads/releases/download/windows-v3.1.0/")
+    model = {f["name"]: f for f in w["payload"]["model"]["files"]}
+    assert [p["size"] for p in model["model.bin"]["parts"]] == [1992294400, 1094989837] and sum(p["size"] for p in model["model.bin"]["parts"]) == model["model.bin"]["size"]
+    assert w["download_bytes"] == pins["setup"]["size"] + sum(f["size"] for f in layout["files"])
+    mac_pins = json.loads((Path(be.ROOT) / "pins" / "mac-intel.json").read_text(encoding="utf-8"))
+    z = tmp_path / "WhisperMedical-Installer-IntelMac.zip"
+    z.write_bytes(b"PK")
+    m = be.mac_entry(mac_pins, z)
+    assert m["status"] == "uploaded" and sum(p["size"] for p in m["payload"]["dmg"]["parts"]) == m["payload"]["dmg"]["size"]
+    assert all(p["url"].startswith("https://github.com/") for p in m["payload"]["dmg"]["parts"])
+
+
+def test_every_pinned_part_is_below_the_two_gib_asset_limit():
+    root = Path(__file__).resolve().parent.parent
+    mac = json.loads((root / "pins" / "mac-intel.json").read_text(encoding="utf-8"))
+    layout = json.loads((root / "scripts" / "model_parts.json").read_text(encoding="utf-8"))
+    sizes = [p["size"] for p in mac["dmg"]["parts"]] + [p["size"] for f in layout["files"] for p in f.get("parts", [])]
+    assert max(sizes) < 2 * 1024 ** 3
