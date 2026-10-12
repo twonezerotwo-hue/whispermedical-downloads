@@ -26,8 +26,11 @@ jobs:
         run: |
           TAG=model-whisper-large-v3
           gh release delete "$TAG" --cleanup-tag --yes 2>/dev/null || true
-          gh release create "$TAG" --draft --latest=false --title "Whisper large-v3 (CTranslate2) - mirror for the WhisperMedical installers" \
-            --notes "Byte-identical copy of Systran/faster-whisper-large-v3 revision edaa852ec7e145841d8ffdb056a99866b5f0a478 (MIT licence, see licenses/MODEL_LICENSES.txt). model.bin is stored in two pieces because a release file may be at most 2 GiB; the installers join and verify them. You do not need to download these files yourself."
+          NOTES="Byte-identical copy of Systran/faster-whisper-large-v3 revision edaa852ec7e145841d8ffdb056a99866b5f0a478 (MIT licence, see licenses/MODEL_LICENSES.txt). model.bin is stored in two pieces because a release file may be at most 2 GiB; the installers join and verify them. You do not need to download these files yourself."
+          for attempt in 1 2 3 4 5 6; do
+            gh release create "$TAG" --draft --latest=false --title "Whisper large-v3 (CTranslate2) - mirror for the WhisperMedical installers" --notes "$NOTES" && break
+            echo "create attempt $attempt failed"; sleep $((attempt * 10))
+          done
           for f in mirror_out/*; do
             for attempt in 1 2 3 4 5; do gh release upload "$TAG" "$f" --clobber && break; echo "retry $f"; sleep 15; done
           done
