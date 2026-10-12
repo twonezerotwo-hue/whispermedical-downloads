@@ -140,7 +140,8 @@ jobs:
           $exe = Join-Path (Get-ItemProperty $key).InstallLocation 'MedicalLectureTranscriber.exe'
           New-NetFirewallRule -DisplayName "block-whispermedical" -Direction Outbound -Action Block -Program $exe | Out-Null
           $env:PATH = "$env:SystemRoot\system32;$env:SystemRoot"                       # no tools of the build machine on the path
-          & $exe --selftest selftest.json
+          $st = Start-Process $exe -ArgumentList '--selftest', "$PWD\selftest.json" -Wait -PassThru        # a windowed program: only Start-Process waits for it
+          "self-test exit code $($st.ExitCode)"
           $r = Get-Content selftest.json -Raw | ConvertFrom-Json
           $r.checks | ForEach-Object { "{0,-18} {1} {2}" -f $_.name, $(if ($_.ok) {'ok'} else {'FAIL'}), $_.detail.Substring(0, [Math]::Min(90, $_.detail.Length)) }
           if (-not $r.ok) { throw "self-test failed" }
