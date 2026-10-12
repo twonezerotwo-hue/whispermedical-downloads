@@ -44,20 +44,20 @@ on run
 			set fields to text items of lastLine
 			set AppleScript's text item delimiters to oldDelimiters
 			if (count of fields) > 0 then
-				set kind to item 1 of fields
-				if kind is "P" and (count of fields) ≥ 4 then
+				set lineKind to item 1 of fields
+				if lineKind is "P" and (count of fields) ≥ 4 then
 					set doneBytes to (item 2 of fields) as real
 					set totalBytes to (item 3 of fields) as real
 					if totalBytes > 0 then
 						set progress completed steps to (round (doneBytes / totalBytes * 1000))
 						set progress additional description to (item 4 of fields) & "   " & ((round (doneBytes / 1.0E+7)) / 100) & " GB of " & ((round (totalBytes / 1.0E+7)) / 100) & " GB"
 					end if
-				else if kind is "S" and (count of fields) ≥ 2 then
+				else if lineKind is "S" and (count of fields) ≥ 2 then
 					set progress additional description to item 2 of fields
-				else if kind is "E" then
+				else if lineKind is "E" then
 					set errorText to item 2 of fields
 					set finished to true
-				else if kind is "D" then
+				else if lineKind is "D" then
 					set installedPath to item 2 of fields
 					set finished to true
 				end if
