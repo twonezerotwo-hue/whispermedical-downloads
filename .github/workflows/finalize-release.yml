@@ -86,6 +86,7 @@ jobs:
             --notes "Download page: https://twonezerotwo-hue.github.io/whispermedical-downloads/ . Run WhisperMedical-Installer-Windows.exe; it fetches and checks everything else. You do not need to download the other files by hand."
       - name: Write the manifest entry (uploaded, not yet announced)
         run: |
+          VER=$(python3 -c "import json;print(json.load(open('pins/windows.json'))['version'])")
           python3 scripts/sitetool.py set-platform windows dist/entry.json
           git config user.name "WhisperMedical"; git config user.email "twonezerotwo-hue@users.noreply.github.com"
           git add release-manifest.json latest
@@ -241,6 +242,7 @@ jobs:
       - name: Write the manifest entry (uploaded, not yet announced)
         run: |
           python3 -c "import json;print(json.dumps(json.load(open('out/entry.json'))))" > /tmp/e.json
+          VER=$(python3 -c "import json;print(json.load(open('pins/mac-intel.json'))['version'])")
           python3 scripts/sitetool.py set-platform mac-intel /tmp/e.json
           git config user.name "WhisperMedical"; git config user.email "twonezerotwo-hue@users.noreply.github.com"
           git add release-manifest.json latest
