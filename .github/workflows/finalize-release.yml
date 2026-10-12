@@ -43,7 +43,8 @@ jobs:
           python -m pip install --quiet pytest
           SHA=$(python -c "import json;print(json.load(open('pins/windows.json'))['setup']['sha256'])")
           SIZE=$(python -c "import json;print(json.load(open('pins/windows.json'))['setup']['size'])")
-          python bootstrap/windows/build.py --setup-sha256 "$SHA" --setup-size "$SIZE" --out dist/WhisperMedical-Installer-Windows.exe
+          VER=$(python -c "import json;print(json.load(open('pins/windows.json'))['version'])")
+          python bootstrap/windows/build.py --version "$VER" --setup-sha256 "$SHA" --setup-size "$SIZE" --out dist/WhisperMedical-Installer-Windows.exe
           python -m pytest tests/test_windows_bootstrapper.py tests/test_site_tools.py -q
           python scripts/build_entries.py windows dist/WhisperMedical-Installer-Windows.exe > dist/entry.json
           cat dist/entry.json | head -20
@@ -69,25 +70,26 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          TAG=windows-v3.1.0
+          VER=$(python3 -c "import json;print(json.load(open('pins/windows.json'))['version'])")
+          TAG="windows-v$VER"
           python3 - <<'EOF'
           import json, subprocess, sys
           pins = json.load(open("pins/windows.json"))
-          out = subprocess.run(["gh", "release", "view", "windows-v3.1.0", "--json", "assets", "--jq", ".assets | map({(.name): .size}) | add"], capture_output=True, text=True)
+          out = subprocess.run(["gh", "release", "view", "windows-v" + pins["version"], "--json", "assets", "--jq", ".assets | map({(.name): .size}) | add"], capture_output=True, text=True)
           have = json.loads(out.stdout or "{}")
           want = pins["setup"]
           if have.get(want["name"]) != want["size"]:
               sys.exit(f"the release does not hold the installer {want['name']} with {want['size']} bytes (found {have.get(want['name'])})")
           EOF
           gh release upload "$TAG" dist/WhisperMedical-Installer-Windows.exe licenses/THIRD_PARTY_LICENSES.txt licenses/MODEL_LICENSES.txt --clobber
-          gh release edit "$TAG" --draft=false --latest=false --title "WhisperMedical 3.1.0 - Windows (x64)" \
+          gh release edit "$TAG" --draft=false --latest=false --title "WhisperMedical $VER - Windows (x64)" \
             --notes "Download page: https://twonezerotwo-hue.github.io/whispermedical-downloads/ . Run WhisperMedical-Installer-Windows.exe; it fetches and checks everything else. You do not need to download the other files by hand."
       - name: Write the manifest entry (uploaded, not yet announced)
         run: |
           python3 scripts/sitetool.py set-platform windows dist/entry.json
           git config user.name "WhisperMedical"; git config user.email "twonezerotwo-hue@users.noreply.github.com"
           git add release-manifest.json latest
-          git commit -m "Manifest: Windows 3.1.0 uploaded (verification running)" || true
+          git commit -m "Manifest: Windows $VER uploaded (verification running)" || true
           git pull --rebase origin main && git push origin HEAD:main
 
   windows-verify:
@@ -172,9 +174,10 @@ jobs:
             exit 0
           fi
           python3 scripts/sitetool.py set-status windows ready
+          VER=$(python3 -c "import json;print(json.load(open('pins/windows.json'))['version'])")
           git config user.name "WhisperMedical"; git config user.email "twonezerotwo-hue@users.noreply.github.com"
           git add release-manifest.json latest
-          git commit -m "Windows 3.1.0 verified end to end: download button enabled" || true
+          git commit -m "Windows $VER verified end to end: download button enabled" || true
           git pull --rebase origin main && git push origin HEAD:main
 
   # ================================================================================================================== Intel Mac
@@ -216,18 +219,19 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          TAG=mac-intel-v3.1.0
+          VER=$(python3 -c "import json;print(json.load(open('pins/mac-intel.json'))['version'])")
+          TAG="mac-intel-v$VER"
           python3 - <<'EOF'
           import json, subprocess, sys
           pins = json.load(open("pins/mac-intel.json"))
-          out = subprocess.run(["gh", "release", "view", "mac-intel-v3.1.0", "--json", "assets", "--jq", ".assets | map({(.name): .size}) | add"], capture_output=True, text=True)
+          out = subprocess.run(["gh", "release", "view", "mac-intel-v" + pins["version"], "--json", "assets", "--jq", ".assets | map({(.name): .size}) | add"], capture_output=True, text=True)
           have = json.loads(out.stdout or "{}")
           missing = [p["name"] for p in pins["dmg"]["parts"] if have.get(p["name"]) != p["size"]]
           if missing:
               sys.exit("the release is missing or has wrong-sized pieces: " + ", ".join(missing))
           EOF
           gh release upload "$TAG" out/WhisperMedical-Installer-IntelMac.zip licenses/THIRD_PARTY_LICENSES.txt licenses/MODEL_LICENSES.txt --clobber
-          gh release edit "$TAG" --draft=false --latest=false --title "WhisperMedical 3.1.0 - Intel Mac" \
+          gh release edit "$TAG" --draft=false --latest=false --title "WhisperMedical $VER - Intel Mac" \
             --notes "Download page: https://twonezerotwo-hue.github.io/whispermedical-downloads/ . Open WhisperMedical-Installer-IntelMac.zip, then the installer app inside; it fetches and checks everything else. Intel Macs only."
       - name: Write the manifest entry (uploaded, not yet announced)
         run: |
@@ -235,7 +239,7 @@ jobs:
           python3 scripts/sitetool.py set-platform mac-intel /tmp/e.json
           git config user.name "WhisperMedical"; git config user.email "twonezerotwo-hue@users.noreply.github.com"
           git add release-manifest.json latest
-          git commit -m "Manifest: Intel Mac 3.1.0 uploaded (verification running)" || true
+          git commit -m "Manifest: Intel Mac $VER uploaded (verification running)" || true
           git pull --rebase origin main && git push origin HEAD:main
 
   mac-verify:
@@ -329,7 +333,8 @@ jobs:
             exit 0
           fi
           python3 scripts/sitetool.py set-status mac-intel ready
+          VER=$(python3 -c "import json;print(json.load(open('pins/mac-intel.json'))['version'])")
           git config user.name "WhisperMedical"; git config user.email "twonezerotwo-hue@users.noreply.github.com"
           git add release-manifest.json latest
-          git commit -m "Intel Mac 3.1.0 verified end to end: download button enabled" || true
+          git commit -m "Intel Mac $VER verified end to end: download button enabled" || true
           git pull --rebase origin main && git push origin HEAD:main

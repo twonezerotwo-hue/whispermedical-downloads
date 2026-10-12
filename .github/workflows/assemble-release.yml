@@ -35,7 +35,8 @@ jobs:
           grep -q '^ASSEMBLE_OK' "$RUNNER_TEMP/asm.log"
       - name: Upload the final files, remove the pieces
         run: |
-          if [ "$PLATFORM" = "windows" ]; then TAG=windows-v3.1.0; else TAG=mac-intel-v3.1.0; fi
+          VER=$(python3 -c "import json,sys;print(json.load(open('pins/$PLATFORM.json'))['version'])")
+          if [ "$PLATFORM" = "windows" ]; then TAG="windows-v$VER"; else TAG="mac-intel-v$VER"; fi
           for f in "$RUNNER_TEMP"/asm/out/*; do
             for attempt in 1 2 3 4 5; do gh release upload "$TAG" "$f" --clobber && break; echo "retry $f"; sleep 15; done
           done
