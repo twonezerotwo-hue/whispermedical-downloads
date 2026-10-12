@@ -1,0 +1,40 @@
+name: test-mac-installer
+
+# Builds the Intel Mac installer app on a real Intel macOS runner and tests its script against a fake payload served from a local server (success, resume, refusals).
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "bootstrap/mac-intel/**"
+      - "tests/test_mac_installer.py"
+      - "pins/mac-intel.json"
+      - ".github/workflows/test-mac-installer.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  mac:
+    runs-on: macos-15-intel
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Runner
+        run: |
+          uname -m; sw_vers; test "$(uname -m)" = "x86_64"
+      - name: Build the installer app and its zip
+        run: |
+          bash bootstrap/mac-intel/build.sh pins/mac-intel.json out
+          unzip -l out/WhisperMedical-Installer-IntelMac.zip | head -20
+          cat "out/WhisperMedical Installer.app/Contents/Resources/pins.env"
+          /usr/bin/codesign -dv "out/WhisperMedical Installer.app" 2>&1 | head -5
+          plutil -lint "out/WhisperMedical Installer.app/Contents/Info.plist"
+      - name: Installer script tests (fake payload)
+        run: |
+          python3 -m pip install --quiet pytest
+          python3 -m pytest tests/test_mac_installer.py -q
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mac-installer-test-build
+          path: out/WhisperMedical-Installer-IntelMac.zip
+          retention-days: 3
