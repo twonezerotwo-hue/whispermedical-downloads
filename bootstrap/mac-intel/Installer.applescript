@@ -71,7 +71,11 @@ on run
 
 	do shell script "rm -rf " & quoted form of workFolder
 	if errorText is not "" then
-		if automated then error errorText number 1
+		if automated then
+			set errorFile to system attribute "WM_ERROR_FILE"
+			if errorFile is not "" then do shell script "printf %s " & quoted form of errorText & " > " & quoted form of errorFile
+			error number -128
+		end if
 		display dialog errorText buttons {"Close"} default button "Close" with title "WhisperMedical Installer" with icon stop
 	else if not automated then
 		display dialog "WhisperMedical is installed in your Applications folder and is starting." & return & return & "Whisper Large-v3 is already inside - nothing more will be downloaded." buttons {"Done"} default button "Done" with title "WhisperMedical Installer" with icon note

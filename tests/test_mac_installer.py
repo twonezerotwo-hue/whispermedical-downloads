@@ -175,11 +175,32 @@ def test_the_installer_app_shows_progress_runs_the_script_and_installs(image, tm
         assert built.returncode == 0, built.stdout + built.stderr
         dest = tmp_path / "Applications"
         dest.mkdir()
-        env = dict(os.environ, WM_AUTOMATED="1", WM_DEST=str(dest),
+        env = dict(os.environ, WM_AUTOMATED="1", WM_DEST=str(dest), WM_ERROR_FILE=str(tmp_path / "error.txt"),
                    WM_ENV=f"MLT_TEST=1 MLT_MANIFEST_URL={srv.url('/manifest.json')} MLT_CACHE={tmp_path / 'cache'}")
-        done = subprocess.run([str(out / "WhisperMedical Installer.app" / "Contents" / "MacOS" / "applet")], capture_output=True, text=True, env=env, timeout=300)
+        done = subprocess.run([str(out / "WhisperMedical Installer.app" / "Contents" / "MacOS" / "applet")], capture_output=True, text=True, env=env, timeout=240)
     finally:
         srv.close()
+    assert not (tmp_path / "error.txt").exists(), (tmp_path / "error.txt").read_text()
     assert done.returncode == 0, done.stdout + done.stderr
     assert (dest / APP / "Contents" / "Info.plist").read_text() == "<plist/>"
     assert not (tmp_path / "cache").exists()
+
+
+def test_the_installer_app_reports_a_refusal_in_plain_words_and_installs_nothing(image, tmp_path):
+    srv = Server({})
+    make(srv, image, status="pending")
+    pins = tmp_path / "pins.json"
+    pins.write_text(json.dumps({"version": "9.9.9", "dmg": {"size": len(image["data"]), "sha256": image["sha"]}}))
+    out = tmp_path / "built"
+    try:
+        built = subprocess.run(["/bin/bash", str(ROOT / "bootstrap" / "mac-intel" / "build.sh"), str(pins), str(out)], capture_output=True, text=True, timeout=300)
+        assert built.returncode == 0, built.stdout + built.stderr
+        dest = tmp_path / "Applications"
+        dest.mkdir()
+        env = dict(os.environ, WM_AUTOMATED="1", WM_DEST=str(dest), WM_ERROR_FILE=str(tmp_path / "error.txt"),
+                   WM_ENV=f"MLT_TEST=1 MLT_MANIFEST_URL={srv.url('/manifest.json')} MLT_CACHE={tmp_path / 'cache'}")
+        subprocess.run([str(out / "WhisperMedical Installer.app" / "Contents" / "MacOS" / "applet")], capture_output=True, text=True, env=env, timeout=240)
+    finally:
+        srv.close()
+    assert "not available yet" in (tmp_path / "error.txt").read_text()
+    assert not (dest / APP).exists()
