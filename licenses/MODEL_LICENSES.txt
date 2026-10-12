@@ -1,0 +1,31 @@
+Models carried by WhisperMedical 3.1.0
+======================================
+
+1. Whisper large-v3 - speech recognition
+   Weights by OpenAI (https://github.com/openai/whisper), MIT licence. The MIT licence allows use, copying, modification, publication and distribution,
+   provided the copyright and permission notice stay with the software:
+
+     MIT License - Copyright (c) 2022 OpenAI
+     Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"),
+     to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense,
+     and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+     The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED.
+
+   Converted for CTranslate2 by Systran: https://huggingface.co/Systran/faster-whisper-large-v3 (revision edaa852ec7e145841d8ffdb056a99866b5f0a478), MIT licence.
+   Files (SHA-256):
+     config.json              2,394 bytes           a9306624f5ec14270a014b647e5c316b6e03a662c369758d1b90697a7b0655b9
+     model.bin                3,087,284,237 bytes   69f74147e3334731bc3a76048724833325d2ec74642fb52620eda87352e3d4f1
+     preprocessor_config.json 340 bytes             7ccc62c6f2765af1f3b46c00c9b5894426835a05021c8b9c01eecb6dfb542711
+     tokenizer.json           2,480,617 bytes       6d8cbd7cd0d8d5815e478dac67b85a26bbe77c1f5e0c6d76d1ce2abc0e5f21ca
+     vocabulary.json          1,068,114 bytes       c69260f2ab26d659b7c398f9a2b2b48ed0df16c3b47d7326782fd9cba71690c1
+
+2. Silero VAD (voice activity detection), file silero_vad_v6.onnx inside faster-whisper - MIT licence (https://github.com/snakers4/silero-vad).
+
+3. RapidOCR / PP-OCR text detection, direction and recognition models (Intel Mac package) - Apache-2.0
+   (https://github.com/RapidAI/RapidOCR, models from https://github.com/PaddlePaddle/PaddleOCR).
+
+4. Medical vocabulary (medical_vocab, medical_terms): written for WhisperMedical.
+
+Nothing is downloaded by the program after installation: the models above are inside the installed program (Mac) or are placed next to your user data by the
+installer (Windows).

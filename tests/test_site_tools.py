@@ -1,0 +1,65 @@
+"""The public site tools: a button is enabled only for a platform that is verified, and nothing private can be published."""
+
+import json
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
+
+import audit_public  # noqa: E402
+import sitetool as site_tools  # noqa: E402
+import pytest  # noqa: E402
+
+
+def entry(status="ready"):
+    return {"status": status, "bootstrapper": {"name": "x.exe", "url": "https://github.com/o/r/releases/download/v1/x.exe"}}
+
+
+def test_a_pending_platform_gets_a_page_that_goes_back_and_a_ready_one_a_redirect(tmp_path):
+    data = {"windows": entry("uploaded"), "mac_intel": entry("ready")}
+    site_tools.write_redirects(data, tmp_path)
+    assert "not available yet" in (tmp_path / "latest" / "windows" / "index.html").read_text(encoding="utf-8")
+    mac = (tmp_path / "latest" / "mac-intel" / "index.html").read_text(encoding="utf-8")
+    assert "https://github.com/o/r/releases/download/v1/x.exe" in mac and "refresh" in mac
+
+
+def test_ready_needs_a_bootstrapper_and_an_exact_status():
+    assert site_tools.ready(entry()) and not site_tools.ready(entry("uploaded")) and not site_tools.ready({"status": "ready"}) and not site_tools.ready({})
+
+
+def test_set_status_refuses_ready_without_a_bootstrapper(tmp_path, monkeypatch):
+    path = tmp_path / "release-manifest.json"
+    path.write_text(json.dumps({"windows": {"status": "uploaded"}, "mac_intel": {"status": "pending"}}), encoding="utf-8")
+    monkeypatch.setattr(site_tools, "MANIFEST", path)
+    monkeypatch.setattr(site_tools, "ROOT", tmp_path)
+    assert site_tools.main(["set-status", "windows", "ready"]) == 1
+    assert json.loads(path.read_text(encoding="utf-8"))["windows"]["status"] == "uploaded"
+
+
+def test_set_platform_never_publishes_directly(tmp_path, monkeypatch):
+    path = tmp_path / "release-manifest.json"
+    path.write_text(json.dumps({"windows": {"status": "pending"}, "mac_intel": {"status": "pending"}}), encoding="utf-8")
+    new = tmp_path / "entry.json"
+    new.write_text(json.dumps(entry("ready")), encoding="utf-8")
+    monkeypatch.setattr(site_tools, "MANIFEST", path)
+    monkeypatch.setattr(site_tools, "ROOT", tmp_path)
+    assert site_tools.main(["set-platform", "windows", str(new)]) == 0
+    assert json.loads(path.read_text(encoding="utf-8"))["windows"]["status"] == "uploaded"       # becomes "ready" only after the verification step
+
+
+@pytest.mark.parametrize("name, text, expected", [
+    ("a.txt", "token ghp_" + "A" * 36, "token"),
+    ("a.txt", "see C:" + chr(92) + "Users" + chr(92) + "someone" + chr(92) + "file", "personal path"),
+    ("a.txt", "mail me@example.org", "e-mail"),
+    ("a.txt", "source: https://github.com/twonezerotwo-hue/" + "whispermedical" + "/tree/main", "private source repo"),
+    ("a.mp4", "x", "must not be published"),
+    ("a.txt", "-----BEGIN " + "PRIVATE KEY-----", "token"),
+])
+def test_the_audit_finds_private_material(tmp_path, name, text, expected):
+    (tmp_path / name).write_text(text, encoding="utf-8")
+    assert any(expected in p for p in audit_public.scan(tmp_path))
+
+
+def test_the_audit_accepts_the_public_repo_and_noreply_addresses(tmp_path):
+    (tmp_path / "a.txt").write_text("https://github.com/twonezerotwo-hue/whispermedical-downloads/issues and 1234+x@users.noreply.github.com", encoding="utf-8")
+    assert audit_public.scan(tmp_path) == []

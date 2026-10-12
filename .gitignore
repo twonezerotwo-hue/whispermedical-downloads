@@ -1,0 +1,9 @@
+.pytest_tmp/
+__pycache__/
+*.pyc
+dist/
+_build/
+*.exe
+*.dmg
+*.zip
+.env

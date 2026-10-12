@@ -1,0 +1,47 @@
+WhisperMedical (Medical Lecture Transcriber) 3.1.0 - third-party components
+==========================================================================
+
+WhisperMedical runs on your computer; transcription, medical-term correction, PDF reading and text recognition do not send anything to a server.
+This file lists what is inside the Windows and the Intel Mac packages and under which licences. The full licence texts of the Python packages are
+inside the installed program (Windows: next to each library; Mac: Medical Lecture Transcriber.app/Contents/Resources/licenses/).
+
+Both platforms
+  faster-whisper (MIT), CTranslate2 (MIT), ONNX Runtime (MIT), tokenizers (Apache-2.0), NumPy (BSD-3-Clause and bundled MIT / Zlib / CC0 parts),
+  PyYAML (MIT), RapidFuzz (MIT), pypdf (BSD-3-Clause), Pillow (MIT-CMU), soundfile (BSD-3-Clause; libsndfile LGPL-2.1+), keyring (MIT),
+  Silero VAD model inside faster-whisper (MIT).
+  Qt 6 / PySide6 / shiboken6 (LGPL-3.0): the user interface. The Qt libraries are separate files in the program folder and can be replaced by your own build.
+  Whisper large-v3 (speech model): see MODEL_LICENSES.txt.
+
+Windows package only
+  NVIDIA CUDA runtime libraries (cuBLAS, cuDNN, CUDA runtime), redistributed unmodified under the NVIDIA CUDA Toolkit / cuDNN licence agreements; they are
+  used only when an NVIDIA GPU is present.
+  FFmpeg command-line tools (ffmpeg.exe, ffprobe.exe): an LGPL-2.1+ build without GPL components, from https://github.com/BtbN/FFmpeg-Builds.
+  Text recognition uses the function built into Windows 10/11.
+
+Intel Mac package only
+  Python 3.11 (PSF licence), PyInstaller bootloader (GPL-2.0-or-later with the exception that allows distributing the built program),
+  RapidOCR (Apache-2.0) with its PP-OCR text detection / recognition models (Apache-2.0) from PaddleOCR, OpenCV (Apache-2.0), shapely (BSD-3-Clause; GEOS LGPL-2.1+),
+  pyclipper (MIT).
+
+GPL components - IMPORTANT
+  Both packages contain PyAV 18.1.0 (BSD-3-Clause), the Python binding to FFmpeg, with the FFmpeg libraries that ship inside the PyAV wheel
+  (libavcodec 62, libavformat 62, libavutil 60, libswscale 9, libswresample 6, libavfilter 11, libavdevice 62). That FFmpeg build is made with the
+  video encoders libx264 (core 165) and libx265 (soname 216), both GPL-2.0-or-later. FFmpeg only allows these encoders in a build that is itself licensed
+  under the GPL, so the FFmpeg libraries inside PyAV must be treated as GPL, NOT as LGPL-only. The same libraries ship in the Windows and in the Mac package;
+  the Mac package also contains the OpenCV wheel's own FFmpeg build with libx264 / libx265. WhisperMedical only DECODES audio and video; it never encodes video.
+  Other codec libraries in these builds: SVT-AV1 4.1.0 (BSD-2-Clause + AOM patent licence), dav1d (BSD-2-Clause), libvpx (BSD-3-Clause), libopus (BSD-3-Clause),
+  libmp3lame (LGPL-2.0+), opencore-amr (Apache-2.0), libwebp (BSD-3-Clause), VMAF (BSD-2-Clause + patent) and, on Windows, Intel oneVPL (MIT) and
+  NVIDIA / AMD codec headers.
+  Corresponding source of these libraries and the recipe that builds them (versions, patches, configure options):
+    PyAV wheels (FFmpeg, x264, x265, codecs)  https://github.com/PyAV-Org/pyav-ffmpeg  and  https://github.com/PyAV-Org/PyAV
+    OpenCV wheels (Mac package)               https://github.com/opencv/opencv-python
+    FFmpeg                                    https://ffmpeg.org/download.html
+    x264                                      https://code.videolan.org/videolan/x264
+    x265                                      https://bitbucket.org/multicoreware/x265_git
+  To ask for the source code of any of these components as shipped, open an issue at
+    https://github.com/twonezerotwo-hue/whispermedical-downloads/issues
+  Note about the packages published as version 3.1.0: the notice file that is already INSIDE those installers describes the PyAV FFmpeg libraries as
+  LGPL-2.1+ (Windows) or leaves the source-request contact unset (Mac). Those statements are superseded by this file.
+
+Python packages and their licences were read from the package metadata of the exact wheels that are shipped. No component is licensed for you under
+terms that are not listed here. If you find an error, please open an issue at the address above.

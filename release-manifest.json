@@ -1,0 +1,18 @@
+{
+  "schema": 1,
+  "product": "WhisperMedical",
+  "version": "3.1.0",
+  "generated": "2026-10-12T00:00:00+00:00",
+  "windows": {
+    "status": "pending",
+    "version": "3.1.0",
+    "architecture": "x64",
+    "minimum_os": "Windows 10"
+  },
+  "mac_intel": {
+    "status": "pending",
+    "version": "3.1.0",
+    "architecture": "x86_64",
+    "minimum_macos": "12.0"
+  }
+}
