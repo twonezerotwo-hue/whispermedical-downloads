@@ -32,12 +32,15 @@ jobs:
   windows-build:
     if: ${{ inputs.platform == 'windows' }}
     runs-on: windows-latest
+    outputs:
+      sha: ${{ steps.entry.outputs.sha }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
       - name: Build the installer program with the pinned checksums and test it
+        id: entry
         shell: bash
         run: |
           python -m pip install --quiet pytest
@@ -48,6 +51,7 @@ jobs:
           python -m pytest tests/test_windows_bootstrapper.py tests/test_site_tools.py -q
           python scripts/build_entries.py windows dist/WhisperMedical-Installer-Windows.exe > dist/entry.json
           cat dist/entry.json | head -20
+          echo "sha=$(python -c "import json;print(json.load(open('dist/entry.json'))['bootstrapper']['sha256'])")" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v4
         with:
           name: windows-installer
@@ -94,18 +98,20 @@ jobs:
           git pull --rebase origin main && git push origin HEAD:main
 
   windows-verify:
-    needs: windows-publish
+    needs: [windows-build, windows-publish]
     runs-on: windows-latest
     timeout-minutes: 90
+    env:
+      EXPECT_SHA: ${{ needs.windows-build.outputs.sha }}
     steps:
-      - name: Wait until the public manifest shows the new entry (GitHub Pages)
+      - name: Wait until the public manifest shows THIS build's entry (GitHub Pages)
         shell: pwsh
         run: |
-          for ($i = 0; $i -lt 40; $i++) {
-            try { $m = Invoke-RestMethod "$env:PAGE/release-manifest.json?x=$(Get-Random)"; if ($m.windows.bootstrapper.url) { break } } catch {}
+          for ($i = 0; $i -lt 80; $i++) {
+            try { $m = Invoke-RestMethod "$env:PAGE/release-manifest.json?x=$(Get-Random)"; if ($m.windows.bootstrapper.sha256 -eq $env:EXPECT_SHA) { break } } catch {}
             Start-Sleep 15
           }
-          if (-not $m.windows.bootstrapper.url) { throw "the manifest never showed the Windows entry" }
+          if ($m.windows.bootstrapper.sha256 -ne $env:EXPECT_SHA) { throw "the manifest never showed the entry of this build" }
           $m.windows | ConvertTo-Json -Depth 4 | Out-File manifest-windows.json
           "BOOT_URL=$($m.windows.bootstrapper.url)" | Out-File -Append $env:GITHUB_ENV
           "BOOT_SHA=$($m.windows.bootstrapper.sha256)" | Out-File -Append $env:GITHUB_ENV
@@ -190,12 +196,15 @@ jobs:
   mac-build:
     if: ${{ inputs.platform == 'mac-intel' }}
     runs-on: macos-15-intel
+    outputs:
+      sha: ${{ steps.entry.outputs.sha }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
       - name: Build the installer app with the pinned checksums, test its script, make the entry
+        id: entry
         run: |
           test "$(uname -m)" = "x86_64"
           bash bootstrap/mac-intel/build.sh pins/mac-intel.json out
@@ -203,6 +212,7 @@ jobs:
           python -m pytest tests/test_mac_installer.py tests/test_site_tools.py -q
           python scripts/build_entries.py mac-intel out/WhisperMedical-Installer-IntelMac.zip > out/entry.json
           head -20 out/entry.json
+          echo "sha=$(python -c "import json;print(json.load(open('out/entry.json'))['bootstrapper']['sha256'])")" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v4
         with:
           name: mac-installer
@@ -250,16 +260,19 @@ jobs:
           git pull --rebase origin main && git push origin HEAD:main
 
   mac-verify:
-    needs: mac-publish
+    needs: [mac-build, mac-publish]
     runs-on: macos-15-intel
     timeout-minutes: 90
+    env:
+      EXPECT_SHA: ${{ needs.mac-build.outputs.sha }}
     steps:
-      - name: Wait until the public manifest shows the new entry (GitHub Pages)
+      - name: Wait until the public manifest shows THIS build's entry (GitHub Pages)
         run: |
-          for i in $(seq 1 40); do
-            curl -fsS "$PAGE/release-manifest.json?x=$RANDOM" -o m.json && python3 -c "import json,sys;sys.exit(0 if json.load(open('m.json')).get('mac_intel',{}).get('bootstrapper',{}).get('url') else 1)" && break
+          for i in $(seq 1 80); do
+            curl -fsS "$PAGE/release-manifest.json?x=$RANDOM" -o m.json && python3 -c "import json,sys,os;sys.exit(0 if json.load(open('m.json')).get('mac_intel',{}).get('bootstrapper',{}).get('sha256')==os.environ['EXPECT_SHA'] else 1)" && break
             sleep 15
           done
+          python3 -c "import json,sys,os;sys.exit(0 if json.load(open('m.json'))['mac_intel']['bootstrapper']['sha256']==os.environ['EXPECT_SHA'] else 1)" || { echo "the manifest never showed the entry of this build"; exit 1; }
           python3 -c "import json;m=json.load(open('m.json'))['mac_intel'];print(m['bootstrapper']['url']);open('boot_url','w').write(m['bootstrapper']['url']);open('boot_sha','w').write(m['bootstrapper']['sha256'])"
       - name: Download the installer like a visitor (no token, no login) and check it
         run: |
