@@ -1,0 +1,33 @@
+name: announce
+
+# Turns the download button of a platform on - only for a platform that passed the end-to-end verification (recorded in release-manifest.json by
+# finalize-release) and only when the owner has confirmed the open-source notices by setting the repository variable LEGAL_ACKNOWLEDGED to "yes".
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: "windows | mac-intel"
+        type: choice
+        options: [windows, mac-intel]
+
+permissions:
+  contents: write
+
+jobs:
+  announce:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Switch the button on
+        env:
+          LEGAL: ${{ vars.LEGAL_ACKNOWLEDGED }}
+          PLATFORM: ${{ inputs.platform }}
+        run: |
+          test "$LEGAL" = "yes" || { echo "::error::The owner has not confirmed the open-source notices (repository variable LEGAL_ACKNOWLEDGED=yes)."; exit 1; }
+          python3 scripts/sitetool.py set-status "$PLATFORM" ready
+          git config user.name "WhisperMedical"; git config user.email "twonezerotwo-hue@users.noreply.github.com"
+          git add release-manifest.json latest
+          git commit -m "$PLATFORM: download button enabled by the owner's confirmation" || true
+          git pull --rebase origin main && git push origin HEAD:main

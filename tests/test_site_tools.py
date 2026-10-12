@@ -36,6 +36,23 @@ def test_set_status_refuses_ready_without_a_bootstrapper(tmp_path, monkeypatch):
     assert json.loads(path.read_text(encoding="utf-8"))["windows"]["status"] == "uploaded"
 
 
+def test_ready_is_refused_until_the_end_to_end_verification_is_recorded(tmp_path, monkeypatch):
+    path = tmp_path / "release-manifest.json"
+    path.write_text(json.dumps({"windows": entry("uploaded"), "mac_intel": {"status": "pending"}}), encoding="utf-8")
+    monkeypatch.setattr(site_tools, "MANIFEST", path)
+    monkeypatch.setattr(site_tools, "ROOT", tmp_path)
+    assert site_tools.main(["set-status", "windows", "ready"]) == 1
+    assert json.loads(path.read_text(encoding="utf-8"))["windows"]["status"] == "uploaded"
+    assert site_tools.main(["set-verified", "windows", "https://github.com/o/r/actions/runs/1"]) == 0
+    assert json.loads(path.read_text(encoding="utf-8"))["windows"]["verification"]["passed"] is True
+    assert site_tools.main(["set-status", "windows", "ready"]) == 0
+    assert site_tools.ready(json.loads(path.read_text(encoding="utf-8"))["windows"])
+    new = tmp_path / "entry.json"
+    new.write_text(json.dumps(entry("uploaded")), encoding="utf-8")
+    assert site_tools.main(["set-platform", "windows", str(new)]) == 0                  # a replaced entry loses the verification
+    assert "verification" not in json.loads(path.read_text(encoding="utf-8"))["windows"]
+
+
 def test_set_platform_never_publishes_directly(tmp_path, monkeypatch):
     path = tmp_path / "release-manifest.json"
     path.write_text(json.dumps({"windows": {"status": "pending"}, "mac_intel": {"status": "pending"}}), encoding="utf-8")

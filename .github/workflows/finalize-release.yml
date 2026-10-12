@@ -165,19 +165,23 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: main
-      - name: Announce on the download page (needs the owner's licence confirmation)
+      - name: Record the verification, then announce on the download page if the owner has confirmed the notices
         env:
           LEGAL: ${{ vars.LEGAL_ACKNOWLEDGED }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          if [ "$LEGAL" != "yes" ]; then
-            echo "::warning::Verified, but NOT announced: the owner has not confirmed the open-source notices (set the repository variable LEGAL_ACKNOWLEDGED=yes, then run this workflow's last job again)."
-            exit 0
-          fi
-          python3 scripts/sitetool.py set-status windows ready
           VER=$(python3 -c "import json;print(json.load(open('pins/windows.json'))['version'])")
+          python3 scripts/sitetool.py set-verified windows "$RUN_URL"
+          if [ "$LEGAL" = "yes" ]; then
+            python3 scripts/sitetool.py set-status windows ready
+            MSG="Windows $VER verified end to end: download button enabled"
+          else
+            echo "::warning::Verified, but NOT announced: the owner has not confirmed the open-source notices (set the repository variable LEGAL_ACKNOWLEDGED=yes, then run the announce workflow)."
+            MSG="Windows $VER verified end to end (button stays disabled until the owner confirms the notices)"
+          fi
           git config user.name "WhisperMedical"; git config user.email "twonezerotwo-hue@users.noreply.github.com"
           git add release-manifest.json latest
-          git commit -m "Windows $VER verified end to end: download button enabled" || true
+          git commit -m "$MSG" || true
           git pull --rebase origin main && git push origin HEAD:main
 
   # ================================================================================================================== Intel Mac
@@ -324,17 +328,21 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: main
-      - name: Announce on the download page (needs the owner's licence confirmation)
+      - name: Record the verification, then announce on the download page if the owner has confirmed the notices
         env:
           LEGAL: ${{ vars.LEGAL_ACKNOWLEDGED }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          if [ "$LEGAL" != "yes" ]; then
-            echo "::warning::Verified, but NOT announced: the owner has not confirmed the open-source notices (set the repository variable LEGAL_ACKNOWLEDGED=yes, then run this workflow's last job again)."
-            exit 0
-          fi
-          python3 scripts/sitetool.py set-status mac-intel ready
           VER=$(python3 -c "import json;print(json.load(open('pins/mac-intel.json'))['version'])")
+          python3 scripts/sitetool.py set-verified mac-intel "$RUN_URL"
+          if [ "$LEGAL" = "yes" ]; then
+            python3 scripts/sitetool.py set-status mac-intel ready
+            MSG="Intel Mac $VER verified end to end: download button enabled"
+          else
+            echo "::warning::Verified, but NOT announced: the owner has not confirmed the open-source notices (set the repository variable LEGAL_ACKNOWLEDGED=yes, then run the announce workflow)."
+            MSG="Intel Mac $VER verified end to end (button stays disabled until the owner confirms the notices)"
+          fi
           git config user.name "WhisperMedical"; git config user.email "twonezerotwo-hue@users.noreply.github.com"
           git add release-manifest.json latest
-          git commit -m "Intel Mac $VER verified end to end: download button enabled" || true
+          git commit -m "$MSG" || true
           git pull --rebase origin main && git push origin HEAD:main
