@@ -7,6 +7,7 @@ file, so a test can prove whether the bootstrapper started it - and, in the refu
 import hashlib
 import json
 import os
+import socket
 import subprocess
 import sys
 import threading
@@ -54,6 +55,7 @@ class Server:
                     outer.cut[path] -= 1
                     self.wfile.write(data[: max(1, len(data) // 3)])
                     self.wfile.flush()
+                    self.connection.shutdown(socket.SHUT_RDWR)                 # really end the connection (a plain close() keeps it open while the file objects live)
                     self.connection.close()
                     return
                 self.wfile.write(data)

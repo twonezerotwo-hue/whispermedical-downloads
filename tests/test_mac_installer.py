@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 import shutil
+import socket
 import subprocess
 import sys
 import threading
@@ -43,11 +44,14 @@ class Server:
                 data = body[start:]
                 self.send_response(206 if rng else 200)
                 self.send_header("Content-Length", str(len(data)))
+                if rng:
+                    self.send_header("Content-Range", f"bytes {start}-{len(body) - 1}/{len(body)}")
                 self.end_headers()
                 if outer.cut.get(self.path, 0) > 0:
                     outer.cut[self.path] -= 1
                     self.wfile.write(data[: max(1, len(data) // 3)])
                     self.wfile.flush()
+                    self.connection.shutdown(socket.SHUT_RDWR)                 # really end the connection (a plain close() keeps it open while the file objects live)
                     self.connection.close()
                     return
                 self.wfile.write(data)
