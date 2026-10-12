@@ -1,0 +1,58 @@
+name: assemble-release
+
+# Second step of the "pieces" route: scripts/stage_upload.py (run on the machine that has the file, over its slow line) put the file into the DRAFT release of the
+# platform as many small pieces. This workflow joins them on GitHub's network, refuses anything that does not match pins/<platform>.json (size and SHA-256 of the
+# whole file and of every final part), uploads the final files, removes the pieces and starts finalize-release for the platform.
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: "windows | mac-intel"
+        type: choice
+        options: [windows, mac-intel]
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: assemble-${{ inputs.platform }}
+  cancel-in-progress: false
+
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PLATFORM: ${{ inputs.platform }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Join the pieces and check them against the pinned values
+        run: |
+          df -h / | tail -1
+          python3 scripts/assemble.py "$PLATFORM" --work "$RUNNER_TEMP/asm" | tee "$RUNNER_TEMP/asm.log"
+          grep -q '^ASSEMBLE_OK' "$RUNNER_TEMP/asm.log"
+      - name: Upload the final files, remove the pieces
+        run: |
+          if [ "$PLATFORM" = "windows" ]; then TAG=windows-v3.1.0; else TAG=mac-intel-v3.1.0; fi
+          for f in "$RUNNER_TEMP"/asm/out/*; do
+            for attempt in 1 2 3 4 5; do gh release upload "$TAG" "$f" --clobber && break; echo "retry $f"; sleep 15; done
+          done
+          python3 - "$TAG" "$RUNNER_TEMP/asm/out" <<'EOF'
+          import json, subprocess, sys
+          from pathlib import Path
+          tag, out = sys.argv[1], Path(sys.argv[2])
+          releases = json.loads(subprocess.run(["gh", "api", "repos/" + __import__("os").environ["GITHUB_REPOSITORY"] + "/releases?per_page=100"], capture_output=True, text=True, check=True).stdout)
+          assets = {a["name"]: a for r in releases if r["tag_name"] == tag for a in r["assets"]}
+          for f in sorted(out.iterdir()):
+              got = assets.get(f.name)
+              if not got or got["size"] != f.stat().st_size:
+                  sys.exit(f"{f.name} is not in the release with the right size")
+          for name, a in assets.items():
+              if ".stage" in name:
+                  subprocess.run(["gh", "api", "-X", "DELETE", "repos/" + __import__("os").environ["GITHUB_REPOSITORY"] + "/releases/assets/" + str(a["id"])], check=True)
+                  print("removed", name)
+          EOF
+      - name: Start the end-to-end verification
+        run: gh workflow run finalize-release.yml -f platform="$PLATFORM"
