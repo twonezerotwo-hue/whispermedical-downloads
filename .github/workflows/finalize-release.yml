@@ -270,6 +270,15 @@ jobs:
           mount | grep -q "WhisperMedical" && { echo "image still mounted"; exit 1; } || true
           echo "quarantine attribute: $(xattr -p com.apple.quarantine "$APP" 2>&1 | head -1)"
           spctl --assess --type execute -vv "$APP" 2>&1 | head -2 || true
+      - name: The installer APP itself (window code, progress file, install into a folder) - same download again
+        continue-on-error: true
+        timeout-minutes: 40
+        run: |
+          unset GH_TOKEN GITHUB_TOKEN
+          rm -rf "$RUNNER_TEMP/Applications2"; mkdir -p "$RUNNER_TEMP/Applications2"
+          WM_AUTOMATED=1 WM_DEST="$RUNNER_TEMP/Applications2" "WhisperMedical Installer.app/Contents/MacOS/applet"
+          test -d "$RUNNER_TEMP/Applications2/Medical Lecture Transcriber.app"
+          echo "installer app: ok"
       - name: The installed app works with the network blocked
         run: |
           APP="$RUNNER_TEMP/Applications/Medical Lecture Transcriber.app"
