@@ -2,12 +2,75 @@
   "schema": 1,
   "product": "WhisperMedical",
   "version": "3.1.0",
-  "generated": "2026-10-12T00:00:00+00:00",
+  "generated": "2026-10-12T16:32:29+00:00",
   "windows": {
-    "status": "pending",
+    "status": "uploaded",
     "version": "3.1.0",
     "architecture": "x64",
-    "minimum_os": "Windows 10"
+    "minimum_os": "Windows 10",
+    "download_bytes": 3603735148,
+    "bootstrapper": {
+      "name": "WhisperMedical-Installer-Windows.exe",
+      "url": "https://github.com/twonezerotwo-hue/whispermedical-downloads/releases/download/windows-v3.1.0/WhisperMedical-Installer-Windows.exe",
+      "size": 26112,
+      "sha256": "8e7651f7365f3a17811fa07a303a80b84ce01dcb27080d1e24ffc5293434aacb"
+    },
+    "payload": {
+      "setup": {
+        "name": "WhisperMedical-Setup-Windows-x64.exe",
+        "size": 512899446,
+        "sha256": "2597d1a48e67a78fc826ae629ad575e26ebf4a13e2d691bd7023a596afdca18f",
+        "url": "https://github.com/twonezerotwo-hue/whispermedical-downloads/releases/download/windows-v3.1.0/WhisperMedical-Setup-Windows-x64.exe"
+      },
+      "model": {
+        "revision": "edaa852ec7e145841d8ffdb056a99866b5f0a478",
+        "files": [
+          {
+            "name": "config.json",
+            "size": 2394,
+            "sha256": "a9306624f5ec14270a014b647e5c316b6e03a662c369758d1b90697a7b0655b9",
+            "url": "https://github.com/twonezerotwo-hue/whispermedical-downloads/releases/download/model-whisper-large-v3/config.json"
+          },
+          {
+            "name": "model.bin",
+            "size": 3087284237,
+            "sha256": "69f74147e3334731bc3a76048724833325d2ec74642fb52620eda87352e3d4f1",
+            "parts": [
+              {
+                "name": "model.bin.part001",
+                "size": 1992294400,
+                "sha256": "facec2e3db68eec0535ea4583565c9057bc9bbd4520e47933c9fb6319ba835ff",
+                "url": "https://github.com/twonezerotwo-hue/whispermedical-downloads/releases/download/model-whisper-large-v3/model.bin.part001"
+              },
+              {
+                "name": "model.bin.part002",
+                "size": 1094989837,
+                "sha256": "2f1fbf1eae6836fd75a2cc286df7c3b75d9b1a9d6a378e5ecdc36e84f08e00a0",
+                "url": "https://github.com/twonezerotwo-hue/whispermedical-downloads/releases/download/model-whisper-large-v3/model.bin.part002"
+              }
+            ]
+          },
+          {
+            "name": "preprocessor_config.json",
+            "size": 340,
+            "sha256": "7ccc62c6f2765af1f3b46c00c9b5894426835a05021c8b9c01eecb6dfb542711",
+            "url": "https://github.com/twonezerotwo-hue/whispermedical-downloads/releases/download/model-whisper-large-v3/preprocessor_config.json"
+          },
+          {
+            "name": "tokenizer.json",
+            "size": 2480617,
+            "sha256": "6d8cbd7cd0d8d5815e478dac67b85a26bbe77c1f5e0c6d76d1ce2abc0e5f21ca",
+            "url": "https://github.com/twonezerotwo-hue/whispermedical-downloads/releases/download/model-whisper-large-v3/tokenizer.json"
+          },
+          {
+            "name": "vocabulary.json",
+            "size": 1068114,
+            "sha256": "c69260f2ab26d659b7c398f9a2b2b48ed0df16c3b47d7326782fd9cba71690c1",
+            "url": "https://github.com/twonezerotwo-hue/whispermedical-downloads/releases/download/model-whisper-large-v3/vocabulary.json"
+          }
+        ]
+      }
+    }
   },
   "mac_intel": {
     "status": "pending",
