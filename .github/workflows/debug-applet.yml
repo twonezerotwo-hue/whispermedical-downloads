@@ -1,0 +1,49 @@
+name: debug-applet
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: macos-15-intel
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Micro applets
+        run: |
+          mkdir -p /tmp/p && cd /tmp/p
+          w() { # name, script
+            printf '%s\n' "$2" > "$1.applescript"
+            osacompile -o "$1.app" "$1.applescript" && echo "$1 compiled"
+            ( timeout 40 "$1.app/Contents/MacOS/applet" ; echo "$1 rc=$?" ) 2>&1
+          }
+          w a1 'on run
+do shell script "echo ran > /tmp/p/a1.txt"
+end run'
+          cat a1.txt || true
+          w a2 'on run
+set progress total steps to 10
+set progress completed steps to 1
+set progress description to "x"
+delay 1
+do shell script "echo progress > /tmp/p/a2.txt"
+end run'
+          cat a2.txt || true
+          w a3 'on run
+set v to system attribute "WM_AUTOMATED"
+do shell script "echo [" & v & "] > /tmp/p/a3.txt"
+end run'
+          cat a3.txt || true
+          WM_AUTOMATED=1 w a3b 'on run
+set v to system attribute "WM_AUTOMATED"
+do shell script "echo [" & v & "] > /tmp/p/a3b.txt"
+end run'
+          cat a3b.txt || true
+          echo "--- who am I / sessions"
+          id; launchctl managername 2>&1 || true; ls -l /dev/console; pgrep -l WindowServer || true
+          echo "--- the real applet with 60 s limit"
+          cat > pins.json <<'JSON'
+          {"version":"9.9.9","dmg":{"size":1,"sha256":"00"}}
+          JSON
+          bash bootstrap/mac-intel/build.sh /tmp/p/pins.json /tmp/p/built >/dev/null 2>&1 || bash "$GITHUB_WORKSPACE/bootstrap/mac-intel/build.sh" /tmp/p/pins.json /tmp/p/built
+          ( WM_AUTOMATED=1 WM_DEST=/tmp/p/dest WM_ENV="MLT_TEST=1" timeout 60 "/tmp/p/built/WhisperMedical Installer.app/Contents/MacOS/applet"; echo "real rc=$?" ) 2>&1 | tail -5
