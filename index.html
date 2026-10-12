@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WhisperMedical</title>
+<meta name="description" content="WhisperMedical: offline medical lecture transcription and study. Whisper Large-v3 included. Windows and Intel Mac.">
+<style>
+  :root { --bg:#f4f6f9; --card:#ffffff; --ink:#14213d; --muted:#5b6b82; --line:#dde3ec; --brand:#1d5fd1; --brand-ink:#ffffff; --ok:#1c7c4d; --off:#c9d1de; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#0f1624; --card:#17213a; --ink:#eef2fb; --muted:#9db0cf; --line:#2a3858; --brand:#4b88f0; --brand-ink:#0b1220; --ok:#4fd08f; --off:#2d3a58; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+  main { max-width:760px; margin:0 auto; padding:48px 20px 64px; }
+  h1 { font-size:2.4rem; margin:0 0 4px; letter-spacing:-0.02em; }
+  .sub { color:var(--muted); font-size:1.15rem; margin:0 0 32px; }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  @media (max-width:640px) { .grid { grid-template-columns:1fr; } }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:22px; display:flex; flex-direction:column; gap:10px; }
+  .card.rec { border-color:var(--brand); box-shadow:0 0 0 2px color-mix(in srgb, var(--brand) 25%, transparent); }
+  .badge { align-self:flex-start; font-size:.75rem; font-weight:600; color:var(--brand); border:1px solid var(--brand); border-radius:99px; padding:1px 9px; visibility:hidden; }
+  .rec .badge { visibility:visible; }
+  .plat { font-size:1.2rem; font-weight:650; }
+  .meta { color:var(--muted); font-size:.92rem; }
+  a.btn { display:block; text-align:center; text-decoration:none; font-weight:650; background:var(--brand); color:var(--brand-ink); padding:13px 16px; border-radius:10px; margin-top:6px; }
+  a.btn[aria-disabled="true"] { background:var(--off); color:var(--muted); pointer-events:none; cursor:default; }
+  a.btn:focus-visible { outline:3px solid var(--ink); outline-offset:2px; }
+  .note { color:var(--muted); font-size:.88rem; min-height:1.3em; }
+  ul.feat { list-style:none; padding:0; margin:32px 0 0; display:grid; grid-template-columns:1fr 1fr; gap:6px 24px; }
+  @media (max-width:640px) { ul.feat { grid-template-columns:1fr; } }
+  ul.feat li::before { content:"\2713\00a0"; color:var(--ok); font-weight:700; }
+  footer { margin-top:40px; padding-top:18px; border-top:1px solid var(--line); color:var(--muted); font-size:.88rem; display:flex; flex-wrap:wrap; gap:6px 18px; }
+  footer a { color:var(--muted); }
+  #version { font-weight:600; }
+</style>
+</head>
+<body>
+<main>
+  <h1>WhisperMedical</h1>
+  <p class="sub">Offline Medical Lecture Transcription &amp; Study</p>
+
+  <div class="grid">
+    <section class="card" id="card-windows">
+      <span class="badge">Recommended for this computer</span>
+      <div class="plat">Windows</div>
+      <div class="meta">Windows 10/11 · x64</div>
+      <a class="btn" id="btn-windows" href="downloads/install-windows.html" aria-disabled="true">Checking&hellip;</a>
+      <div class="note" id="note-windows"></div>
+    </section>
+    <section class="card" id="card-mac">
+      <span class="badge">Recommended for this computer</span>
+      <div class="plat">Intel Mac</div>
+      <div class="meta">macOS 12+ · Intel x86_64 (2019 and similar)</div>
+      <a class="btn" id="btn-mac" href="downloads/install-mac-intel.html" aria-disabled="true">Checking&hellip;</a>
+      <div class="note" id="note-mac"></div>
+    </section>
+  </div>
+
+  <ul class="feat">
+    <li>Whisper Large-v3 included</li>
+    <li>Medical terminology correction</li>
+    <li>PDF &amp; OCR</li>
+    <li>Offline transcription &mdash; no cloud required</li>
+    <li>Study workspace: summary, flashcards, questions</li>
+    <li>No account, no Python, no extra downloads after install</li>
+  </ul>
+
+  <footer>
+    <span>Version <span id="version">&hellip;</span></span>
+    <a href="downloads/install-windows.html">Windows help</a>
+    <a href="downloads/install-mac-intel.html">Intel Mac help</a>
+    <a href="licenses/THIRD_PARTY_LICENSES.txt">Licenses</a>
+    <a href="licenses/MODEL_LICENSES.txt">Model licenses</a>
+    <span>Intel Macs only &mdash; Apple Silicon (M1/M2/M3) is not supported by this build.</span>
+  </footer>
+</main>
+
+<script>
+(function () {
+  var ua = navigator.userAgent || "";
+  var platform = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || "";
+  var isWindows = /Win/i.test(platform) || /Windows/i.test(ua);
+  var isMac = /Mac/i.test(platform) || /Macintosh/i.test(ua);
+  if (isWindows) document.getElementById("card-windows").classList.add("rec");
+  else if (isMac) document.getElementById("card-mac").classList.add("rec");
+
+  function gb(bytes) { return (bytes / 1073741824).toFixed(1) + " GB"; }
+  function apply(key, id, label, entry, extra) {
+    var btn = document.getElementById("btn-" + id), note = document.getElementById("note-" + id);
+    if (entry && entry.status === "ready" && entry.bootstrapper && entry.bootstrapper.url) {
+      btn.href = entry.bootstrapper.url;
+      btn.textContent = "Download for " + label;
+      btn.removeAttribute("aria-disabled");
+      note.textContent = "Version " + entry.version + " · downloads about " + gb(entry.download_bytes || 0) + " during installation. " + extra;
+    } else {
+      btn.textContent = "Not available yet";
+      btn.setAttribute("aria-disabled", "true");
+      note.textContent = "This download is being prepared and will appear here when it is complete and verified.";
+    }
+  }
+  fetch("release-manifest.json", { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (m) {
+    document.getElementById("version").textContent = m.version || "";
+    apply("windows", "windows", "Windows", m.windows, "Windows may ask you to confirm.");
+    apply("mac_intel", "mac", "Intel Mac", m.mac_intel, "First start: right-click the app and choose Open.");
+  }).catch(function () {
+    ["windows", "mac"].forEach(function (id) {
+      var b = document.getElementById("btn-" + id);
+      b.textContent = "Not available yet"; b.setAttribute("aria-disabled", "true");
+      document.getElementById("note-" + id).textContent = "Could not load the download list. Please try again later.";
+    });
+  });
+})();
+</script>
+</body>
+</html>
