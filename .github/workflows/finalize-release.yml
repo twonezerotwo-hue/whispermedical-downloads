@@ -84,7 +84,7 @@ jobs:
             --notes "Download page: https://twonezerotwo-hue.github.io/whispermedical-downloads/ . Run WhisperMedical-Installer-Windows.exe; it fetches and checks everything else. You do not need to download the other files by hand."
       - name: Write the manifest entry (uploaded, not yet announced)
         run: |
-          python3 scripts/sitetool.py set-platform windows <(python3 -c "import json;print(json.dumps(json.load(open('dist/entry.json'))))" > /tmp/e.json; echo /tmp/e.json)
+          python3 scripts/sitetool.py set-platform windows dist/entry.json
           git config user.name "WhisperMedical"; git config user.email "twonezerotwo-hue@users.noreply.github.com"
           git add release-manifest.json latest
           git commit -m "Manifest: Windows 3.1.0 uploaded (verification running)" || true
@@ -120,8 +120,11 @@ jobs:
           $p = Start-Process .\boot.exe -ArgumentList '--console','--unattended','--no-launch' -Wait -PassThru -RedirectStandardOutput boot.out.txt -RedirectStandardError boot.err.txt
           Get-Content boot.out.txt | Select-Object -Last 40
           if ($p.ExitCode -ne 0) { Get-Content boot.err.txt; throw "installer exit code $($p.ExitCode)" }
-          $exe = "$env:ProgramFiles\Medical Lecture Transcriber\MedicalLectureTranscriber.exe"
-          if (-not (Test-Path $exe)) { throw "the program was not installed" }
+          $key = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{6F0B7C52-3A1E-4E7D-9C54-8D2A7B1E4F60}_is1'
+          $dir = (Get-ItemProperty $key).InstallLocation
+          $exe = Join-Path $dir 'MedicalLectureTranscriber.exe'
+          if (-not (Test-Path $exe)) { throw "the program was not installed (looked in $dir)" }
+          "installed in $dir"
           $model = "$env:LOCALAPPDATA\MedicalLectureTranscriber\models\whisper-large-v3"
           Get-ChildItem $model | Select-Object Name, Length | Format-Table
           if (-not (Test-Path "$model\model.bin")) { throw "the speech model was not placed" }
@@ -131,8 +134,10 @@ jobs:
         env:
           QT_QPA_PLATFORM: offscreen
         run: |
-          $exe = "$env:ProgramFiles\Medical Lecture Transcriber\MedicalLectureTranscriber.exe"
+          $key = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{6F0B7C52-3A1E-4E7D-9C54-8D2A7B1E4F60}_is1'
+          $exe = Join-Path (Get-ItemProperty $key).InstallLocation 'MedicalLectureTranscriber.exe'
           New-NetFirewallRule -DisplayName "block-whispermedical" -Direction Outbound -Action Block -Program $exe | Out-Null
+          $env:PATH = "$env:SystemRoot\system32;$env:SystemRoot"                       # no tools of the build machine on the path
           & $exe --selftest selftest.json
           $r = Get-Content selftest.json -Raw | ConvertFrom-Json
           $r.checks | ForEach-Object { "{0,-18} {1} {2}" -f $_.name, $(if ($_.ok) {'ok'} else {'FAIL'}), $_.detail.Substring(0, [Math]::Min(90, $_.detail.Length)) }
@@ -272,7 +277,7 @@ jobs:
           export HOME_TEST="$RUNNER_TEMP/home"; mkdir -p "$HOME_TEST"
           BLOCK='(version 1)(allow default)(deny network*)(allow network* (remote unix-socket))(allow network* (remote ip "localhost:*"))'
           ! sandbox-exec -p "$BLOCK" python3 -c "import socket; socket.create_connection(('1.1.1.1',443),5)" 2>/dev/null || { echo "network block did not work"; exit 1; }
-          HOME="$HOME_TEST" QT_QPA_PLATFORM=offscreen MLT_SELFTEST_DEEP=1 sandbox-exec -p "$BLOCK" "$EXE" --selftest "$RUNNER_TEMP/selftest.json" || true
+          env -i HOME="$HOME_TEST" PATH=/usr/bin:/bin:/usr/sbin:/sbin LANG=en_US.UTF-8 TMPDIR="$RUNNER_TEMP" QT_QPA_PLATFORM=offscreen MLT_SELFTEST_DEEP=1 sandbox-exec -p "$BLOCK" "$EXE" --selftest "$RUNNER_TEMP/selftest.json" || true
           python3 - <<'EOF'
           import json, os
           r = json.load(open(os.environ["RUNNER_TEMP"] + "/selftest.json"))
@@ -283,7 +288,7 @@ jobs:
           assert "Whisper Large-v3: installed" in model, model
           EOF
           curl -fsSL "$JFK_URL" -o "$RUNNER_TEMP/jfk.flac"
-          HOME="$HOME_TEST" QT_QPA_PLATFORM=offscreen MLT_ALLOW_MULTIPLE=1 sandbox-exec -p "$BLOCK" "$EXE" --autorun "$RUNNER_TEMP/jfk.flac" --result "$RUNNER_TEMP/result.json" --timeout 1500 --language en || true
+          env -i HOME="$HOME_TEST" PATH=/usr/bin:/bin:/usr/sbin:/sbin LANG=en_US.UTF-8 TMPDIR="$RUNNER_TEMP" QT_QPA_PLATFORM=offscreen MLT_ALLOW_MULTIPLE=1 sandbox-exec -p "$BLOCK" "$EXE" --autorun "$RUNNER_TEMP/jfk.flac" --result "$RUNNER_TEMP/result.json" --timeout 1500 --language en || true
           python3 - <<'EOF'
           import json, os, pathlib
           r = json.load(open(os.environ["RUNNER_TEMP"] + "/result.json"))
