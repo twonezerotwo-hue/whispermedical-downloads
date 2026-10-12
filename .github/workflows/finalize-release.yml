@@ -284,7 +284,8 @@ jobs:
         run: |
           unset GH_TOKEN GITHUB_TOKEN
           rm -rf "$RUNNER_TEMP/Applications2"; mkdir -p "$RUNNER_TEMP/Applications2"
-          WM_AUTOMATED=1 WM_DEST="$RUNNER_TEMP/Applications2" "WhisperMedical Installer.app/Contents/MacOS/applet"
+          WM_AUTOMATED=1 WM_DEST="$RUNNER_TEMP/Applications2" WM_ERROR_FILE="$RUNNER_TEMP/applet_error.txt" "WhisperMedical Installer.app/Contents/MacOS/applet" || true
+          if [ -f "$RUNNER_TEMP/applet_error.txt" ]; then echo "installer app reported: $(cat "$RUNNER_TEMP/applet_error.txt")"; exit 1; fi
           test -d "$RUNNER_TEMP/Applications2/Medical Lecture Transcriber.app"
           echo "installer app: ok"
       - name: The installed app works with the network blocked
