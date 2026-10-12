@@ -114,6 +114,16 @@ def test_download_verify_mount_copy_and_clean_up(image, tmp_path):
     assert subprocess.run(["mount"], capture_output=True, text=True).stdout.count("mlt") == 0 and "Fake" not in subprocess.run(["mount"], capture_output=True, text=True).stdout
 
 
+def test_a_complete_release_that_is_still_being_verified_can_be_installed_by_the_installer(image, tmp_path):
+    srv = Server({})
+    make(srv, image, status="uploaded")                                                   # the verification run itself installs from an "uploaded" release
+    try:
+        done, dest, _ = run(srv, image, tmp_path)
+    finally:
+        srv.close()
+    assert done.returncode == 0 and (dest / APP).is_dir(), done.stdout + done.stderr
+
+
 def test_cut_connections_resume_inside_the_file(image, tmp_path):
     srv = Server({})
     make(srv, image)

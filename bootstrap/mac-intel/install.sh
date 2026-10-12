@@ -73,7 +73,7 @@ until /usr/bin/curl $CURL_PROTO -fsSL --connect-timeout 20 --max-time 60 -A "Whi
     tries=$((tries + 1)); [ $tries -ge 6 ] && fail "Could not reach the download server. Check your internet connection and try again."
     sleep $((tries * 2))
 done
-LIST="$(/usr/bin/osascript -l JavaScript -e 'function run(argv){ ObjC.import("Foundation"); var s=$.NSString.stringWithContentsOfFileEncodingError(argv[0],$.NSUTF8StringEncoding,null).js; var m=JSON.parse(s); var e=m.mac_intel||{}; if(e.status!=="ready") return "STATUS|"+(e.status||"missing"); var d=e.payload.dmg; var out=["VERSION|"+e.version,"DMG|"+d.name+"|"+d.size+"|"+d.sha256]; (d.parts||[]).forEach(function(p){out.push("PART|"+p.name+"|"+p.size+"|"+p.sha256+"|"+p.url);}); return out.join("\n"); }' "$MANIFEST" 2>/dev/null)"
+LIST="$(/usr/bin/osascript -l JavaScript -e 'function run(argv){ ObjC.import("Foundation"); var s=$.NSString.stringWithContentsOfFileEncodingError(argv[0],$.NSUTF8StringEncoding,null).js; var m=JSON.parse(s); var e=m.mac_intel||{}; if(e.status!=="ready" && e.status!=="uploaded") return "STATUS|"+(e.status||"missing"); var d=e.payload.dmg; var out=["VERSION|"+e.version,"DMG|"+d.name+"|"+d.size+"|"+d.sha256]; (d.parts||[]).forEach(function(p){out.push("PART|"+p.name+"|"+p.size+"|"+p.sha256+"|"+p.url);}); return out.join("\n"); }' "$MANIFEST" 2>/dev/null)"
 case "$LIST" in STATUS*) fail "This download is not available yet. Please try again later." ;; "") fail "The download list could not be read." ;; esac
 M_VERSION="$(printf '%s\n' "$LIST" | /usr/bin/awk -F'|' '$1=="VERSION"{print $2}')"
 M_DMG="$(printf '%s\n' "$LIST" | /usr/bin/awk -F'|' '$1=="DMG"{print $2"|"$3"|"$4}')"
