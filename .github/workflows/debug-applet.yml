@@ -23,7 +23,7 @@ jobs:
           id; launchctl managername 2>&1 || true; ls -l /dev/console; pgrep -l WindowServer || true
           echo "--- the real applet, 60 s limit"
           echo '{"version":"9.9.9","dmg":{"size":1,"sha256":"00"}}' > /tmp/p/pins.json
-          bash bootstrap/mac-intel/build.sh /tmp/p/pins.json /tmp/p/built > /dev/null
+          bash "$GITHUB_WORKSPACE/bootstrap/mac-intel/build.sh" /tmp/p/pins.json /tmp/p/built > /dev/null
           ( WM_AUTOMATED=1 WM_DEST=/tmp/p/dest WM_ENV="MLT_TEST=1" tmo 60 "/tmp/p/built/WhisperMedical Installer.app/Contents/MacOS/applet"; echo "real rc=$?" ) 2>&1 | tail -5
           echo "--- run via open"
           ( WM_AUTOMATED=1 tmo 40 open -W "/tmp/p/built/WhisperMedical Installer.app"; echo "open rc=$?" ) 2>&1 | tail -3
