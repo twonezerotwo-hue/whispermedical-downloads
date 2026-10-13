@@ -83,7 +83,7 @@
   if (isWindows) document.getElementById("card-windows").classList.add("rec");
   else if (isMac) document.getElementById("card-mac").classList.add("rec");
 
-  function gb(bytes) { return (bytes / 1073741824).toFixed(1) + " GB"; }
+  function gb(bytes) { return (bytes / 1e9).toFixed(1) + " GB"; }
   function apply(key, id, label, entry, extra) {
     var btn = document.getElementById("btn-" + id), note = document.getElementById("note-" + id);
     if (entry && entry.status === "ready" && entry.bootstrapper && entry.bootstrapper.url) {
