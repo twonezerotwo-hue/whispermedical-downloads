@@ -2,7 +2,7 @@
   "schema": 1,
   "product": "WhisperMedical",
   "version": "3.1.0",
-  "generated": "2026-10-12T16:43:44+00:00",
+  "generated": "2026-10-13T04:26:59+00:00",
   "windows": {
     "status": "uploaded",
     "version": "3.1.0",
@@ -78,9 +78,37 @@
     }
   },
   "mac_intel": {
-    "status": "pending",
+    "status": "uploaded",
     "version": "3.1.0",
     "architecture": "x86_64",
-    "minimum_macos": "12.0"
+    "minimum_macos": "12.0",
+    "download_bytes": 3067261783,
+    "bootstrapper": {
+      "name": "WhisperMedical-Installer-IntelMac.zip",
+      "url": "https://github.com/twonezerotwo-hue/whispermedical-downloads/releases/download/mac-intel-v3.1.0/WhisperMedical-Installer-IntelMac.zip",
+      "size": 65342,
+      "sha256": "2bbab1f0416f7c19d04db0d1e4e9ce4f9f7e3d712a5338690fea0167cb3e6440"
+    },
+    "payload": {
+      "dmg": {
+        "name": "WhisperMedical-Intel-Mac-Offline.dmg",
+        "size": 3067261783,
+        "sha256": "9806194aa843d80a903a78ec916b959a7c8d30d9977a6edb9879e628db216737",
+        "parts": [
+          {
+            "name": "WhisperMedical-Intel-Mac-Offline.dmg.part001",
+            "size": 1992294400,
+            "sha256": "5d27961f7ebf2db6a64d41010a38e12cbe4289f672149bd5ac2ebb129bc4f0e9",
+            "url": "https://github.com/twonezerotwo-hue/whispermedical-downloads/releases/download/mac-intel-v3.1.0/WhisperMedical-Intel-Mac-Offline.dmg.part001"
+          },
+          {
+            "name": "WhisperMedical-Intel-Mac-Offline.dmg.part002",
+            "size": 1074967383,
+            "sha256": "d7c89a2241453701b7dd0beb393dd29396581cc1e1992f1a3ee4ebfc433624ef",
+            "url": "https://github.com/twonezerotwo-hue/whispermedical-downloads/releases/download/mac-intel-v3.1.0/WhisperMedical-Intel-Mac-Offline.dmg.part002"
+          }
+        ]
+      }
+    }
   }
 }
