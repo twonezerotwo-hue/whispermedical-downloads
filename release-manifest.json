@@ -2,25 +2,25 @@
   "schema": 1,
   "product": "WhisperMedical",
   "version": "3.1.0",
-  "generated": "2026-10-13T04:32:40+00:00",
+  "generated": "2026-10-16T11:38:06+00:00",
   "windows": {
     "status": "uploaded",
-    "version": "3.1.0",
+    "version": "4.0.0",
     "architecture": "x64",
     "minimum_os": "Windows 10",
-    "download_bytes": 3603735148,
+    "download_bytes": 3678888999,
     "bootstrapper": {
       "name": "WhisperMedical-Installer-Windows.exe",
-      "url": "https://github.com/twonezerotwo-hue/whispermedical-downloads/releases/download/windows-v3.1.0/WhisperMedical-Installer-Windows.exe",
+      "url": "https://github.com/twonezerotwo-hue/whispermedical-downloads/releases/download/windows-v4.0.0/WhisperMedical-Installer-Windows.exe",
       "size": 26112,
-      "sha256": "8b3dd646851a79151ab757f40944cab927d125bd9af6a49f2a5a7acf581901ba"
+      "sha256": "3881df118ce2d0e3eaa20c0c1f8272dcaedf4418fe9d87c420d7c9a74d848e8c"
     },
     "payload": {
       "setup": {
         "name": "WhisperMedical-Setup-Windows-x64.exe",
-        "size": 512899446,
-        "sha256": "2597d1a48e67a78fc826ae629ad575e26ebf4a13e2d691bd7023a596afdca18f",
-        "url": "https://github.com/twonezerotwo-hue/whispermedical-downloads/releases/download/windows-v3.1.0/WhisperMedical-Setup-Windows-x64.exe"
+        "size": 588053297,
+        "sha256": "2c8f8613c94367b496a507d6da9cd46e8b4d4bdd85b8533c5e3858998e4e9c2b",
+        "url": "https://github.com/twonezerotwo-hue/whispermedical-downloads/releases/download/windows-v4.0.0/WhisperMedical-Setup-Windows-x64.exe"
       },
       "model": {
         "revision": "edaa852ec7e145841d8ffdb056a99866b5f0a478",
@@ -70,11 +70,6 @@
           }
         ]
       }
-    },
-    "verification": {
-      "passed": true,
-      "run": "https://github.com/twonezerotwo-hue/whispermedical-downloads/actions/runs/38278914787",
-      "date": "2026-10-12T16:43:44+00:00"
     }
   },
   "mac_intel": {
