@@ -1,6 +1,7 @@
 {
   "schema": 1,
   "product": "WhisperMedical",
+  "product_version": "4.0.0",
   "version": "3.1.0",
   "generated": "2026-10-16T11:42:14+00:00",
   "windows": {
@@ -75,7 +76,8 @@
       "passed": true,
       "run": "https://github.com/twonezerotwo-hue/whispermedical-downloads/actions/runs/38894983772",
       "date": "2026-10-16T11:42:14+00:00"
-    }
+    },
+    "release_date": "2026-10-16"
   },
   "mac_intel": {
     "status": "uploaded",
@@ -114,6 +116,7 @@
       "passed": true,
       "run": "https://github.com/twonezerotwo-hue/whispermedical-downloads/actions/runs/38346333422",
       "date": "2026-10-13T04:32:40+00:00"
-    }
+    },
+    "release_date": "2026-10-13"
   }
 }

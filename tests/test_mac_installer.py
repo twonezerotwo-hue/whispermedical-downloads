@@ -15,7 +15,7 @@ import pytest
 
 pytestmark = pytest.mark.skipif(sys.platform != "darwin", reason="needs macOS (hdiutil, osascript)")
 ROOT = Path(__file__).resolve().parent.parent
-SCRIPT = ROOT / "bootstrap" / "mac-intel" / "install.sh"
+SCRIPT = ROOT / "install" / "install-macos.sh"
 APP = "Medical Lecture Transcriber.app"
 
 
@@ -82,7 +82,7 @@ def image(tmp_path_factory):
     return {"data": data, "parts": parts, "sha": sha(data)}
 
 
-def make(srv, image, status="ready", version="9.9.9", tamper=False):
+def make(srv, image, status="ready", version="9.9.9", tamper=False, product=None, verified=False):
     parts = []
     for i, p in enumerate(image["parts"], 1):
         name = f"WhisperMedical-Intel-Mac-Offline.dmg.part{i:03d}"
@@ -91,6 +91,10 @@ def make(srv, image, status="ready", version="9.9.9", tamper=False):
         parts.append({"name": name, "size": len(p), "sha256": sha(p), "url": srv.url("/" + name)})
     manifest = {"mac_intel": {"status": status, "version": version, "payload": {"dmg": {"name": "WhisperMedical-Intel-Mac-Offline.dmg", "size": len(image["data"]),
                                                                                         "sha256": image["sha"], "parts": parts}}}}
+    if product:
+        manifest["product_version"] = product
+    if verified:
+        manifest["mac_intel"]["verification"] = {"passed": True}
     srv.files["/manifest.json"] = json.dumps(manifest).encode()
 
 
@@ -204,3 +208,64 @@ def test_the_installer_app_reports_a_refusal_in_plain_words_and_installs_nothing
         srv.close()
     assert "not available yet" in (tmp_path / "error.txt").read_text()
     assert not (dest / APP).exists()
+
+
+# ---------------------------------------------------------------------------------------------------- the one-command path: no pins, the manifest decides
+def run_standalone(srv, tmp_path, plain=False, allow=False):
+    dest = tmp_path / "Applications"
+    dest.mkdir()
+    env = dict(os.environ, MLT_TEST="1", MLT_MANIFEST_URL=srv.url("/manifest.json"), MLT_CACHE=str(tmp_path / "cache"))
+    for name in ("MLT_PIN_VERSION", "MLT_PIN_DMG_SHA256", "MLT_PIN_DMG_SIZE"):
+        env.pop(name, None)
+    if plain:
+        env["MLT_PLAIN"] = "1"
+    if allow:
+        env["MLT_ALLOW_UNANNOUNCED"] = "1"
+    done = subprocess.run(["/bin/bash", str(SCRIPT), "--dest", str(dest), "--no-open"], capture_output=True, text=True, env=env, timeout=300)
+    return done, dest
+
+
+def test_the_one_command_install_takes_everything_from_the_manifest_and_prints_readable_text(image, tmp_path):
+    srv = Server({})
+    make(srv, image, product="9.9.9")
+    try:
+        done, dest = run_standalone(srv, tmp_path, plain=True)
+    finally:
+        srv.close()
+    assert done.returncode == 0 and (dest / APP / "Contents" / "Info.plist").read_text() == "<plist/>", done.stdout + done.stderr
+    assert "Installed:" in done.stdout and "D|" not in done.stdout and "S|" not in done.stdout and "of" in done.stdout
+    assert not (tmp_path / "cache").exists()
+
+
+def test_the_one_command_install_offers_only_an_announced_current_release(image, tmp_path):
+    cases = [({"status": "uploaded", "product": "9.9.9", "verified": True}, False, 3, "not announced"),          # verified but the owner has not announced it
+             ({"status": "ready", "product": "10.0.0"}, False, 3, "10.0.0 for intel macs is not available yet"),    # an older build is never offered as the current version
+             ({"status": "uploaded", "product": "9.9.9", "verified": False}, True, 3, "not announced"),            # even the test switch needs a verified release
+             ({"status": "pending", "product": "9.9.9"}, False, 3, "not announced")]
+    for kw, allow, code, text in cases:
+        srv = Server({})
+        make(srv, image, **kw)
+        sub = tmp_path / f"case{len(list(tmp_path.iterdir()))}"
+        sub.mkdir()
+        try:
+            done, dest = run_standalone(srv, sub, plain=True, allow=allow)
+        finally:
+            srv.close()
+        assert done.returncode == code and text in (done.stdout + done.stderr).lower(), (kw, done.returncode, done.stdout + done.stderr)
+        assert not (dest / APP).exists() and not [r for r in srv.requests if "part" in r[0]]
+
+
+def test_the_test_switch_installs_a_verified_but_unannounced_release_and_says_so(image, tmp_path):
+    srv = Server({})
+    make(srv, image, status="uploaded", product="9.9.9", verified=True)
+    try:
+        done, dest = run_standalone(srv, tmp_path, plain=True, allow=True)
+    finally:
+        srv.close()
+    assert done.returncode == 0 and (dest / APP).is_dir() and "TEST MODE" in done.stdout, done.stdout + done.stderr
+
+
+def test_one_engine_serves_the_app_the_command_and_the_double_click_file():
+    build = (ROOT / "bootstrap" / "mac-intel" / "build.sh").read_text(encoding="utf-8")
+    assert 'install/install-macos.sh" "$APP/Contents/Resources/install.sh"' in build and "Install WhisperMedical.command" in build
+    assert not (ROOT / "bootstrap" / "mac-intel" / "install.sh").exists()

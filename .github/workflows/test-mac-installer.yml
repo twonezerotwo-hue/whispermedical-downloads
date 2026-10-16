@@ -6,6 +6,7 @@ on:
   push:
     paths:
       - "bootstrap/mac-intel/**"
+      - "install/**"
       - "tests/test_mac_installer.py"
       - "pins/mac-intel.json"
       - ".github/workflows/test-mac-installer.yml"
@@ -26,6 +27,8 @@ jobs:
         run: |
           bash bootstrap/mac-intel/build.sh pins/mac-intel.json out
           unzip -l out/WhisperMedical-Installer-IntelMac.zip | head -20
+          unzip -l out/WhisperMedical-Installer-IntelMac.zip | grep -q "Install WhisperMedical.command"
+          cmp install/install-macos.sh "out/WhisperMedical Installer.app/Contents/Resources/install.sh"      # one engine for the app, the .command and the one-command install
           cat "out/WhisperMedical Installer.app/Contents/Resources/pins.env"
           /usr/bin/codesign -dv "out/WhisperMedical Installer.app" 2>&1 | head -5
           plutil -lint "out/WhisperMedical Installer.app/Contents/Info.plist"

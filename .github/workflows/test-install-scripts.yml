@@ -1,0 +1,199 @@
+name: test-install-scripts
+
+# The ways a visitor installs WhisperMedical, tested exactly as documented, anonymously (no token, no login, no checkout of the program's source):
+#   unit      the static rules (documented commands == tested commands, no placeholder, manifest rules) and the Windows script against a local server
+#   windows   BOTH paths on a clean Windows machine: "one-command" (the line of the README) and "one-click" (the installer program of the manifest), then the
+#             installed program with the network blocked, a transcription, and the uninstall
+#   mac       the one-command line on an Intel macOS machine: architecture, the availability rule (the Intel Mac package of 4.0.0 does not exist yet, so the
+#             command must refuse and install nothing) - and, as soon as the manifest holds a Mac build of the product version, the whole installation,
+#             the offline start and a transcription
+# A release that is verified but not announced (status "uploaded") is installed in these tests with the test switch WHISPERMEDICAL_ALLOW_UNANNOUNCED=1 /
+# MLT_ALLOW_UNANNOUNCED=1; the plain command (no switch) must refuse it until the owner announced it.
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "install/**"
+      - "README.md"
+      - "index.html"
+      - "release-manifest.json"
+      - "scripts/sitetool.py"
+      - "bootstrap/**"
+      - "tests/test_install_scripts.py"
+      - "tests/test_mac_installer.py"
+      - ".github/workflows/test-install-scripts.yml"
+
+permissions:
+  contents: read
+
+env:
+  JFK_URL: https://github.com/openai/whisper/raw/main/tests/jfk.flac
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Static rules, manifest rules, scripts
+        run: |
+          python -m pip install --quiet pytest
+          python scripts/sitetool.py validate
+          python -m pytest tests/test_install_scripts.py tests/test_site_tools.py tests/test_assemble.py -q
+          bash -n install/install-macos.sh "install/Install WhisperMedical.command" bootstrap/mac-intel/build.sh
+
+  windows-script:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: The PowerShell script against a local server and a fake installer program
+        shell: bash
+        run: |
+          python -m pip install --quiet pytest
+          python -m pytest tests/test_install_scripts.py -q
+
+  windows:
+    needs: unit
+    runs-on: windows-latest
+    timeout-minutes: 75
+    strategy:
+      fail-fast: false
+      matrix:
+        method: [one-command, one-click]
+    steps:
+      - name: What does the published manifest offer for Windows?
+        shell: pwsh
+        run: |
+          $m = Invoke-RestMethod "https://twonezerotwo-hue.github.io/whispermedical-downloads/release-manifest.json?x=$(Get-Random)"
+          "product $($m.product_version); windows $($m.windows.version) status $($m.windows.status)"
+          "WM_STATUS=$($m.windows.status)" | Out-File -Append $env:GITHUB_ENV
+          "WM_BOOT_URL=$($m.windows.bootstrapper.url)" | Out-File -Append $env:GITHUB_ENV
+          "WM_BOOT_SHA=$($m.windows.bootstrapper.sha256)" | Out-File -Append $env:GITHUB_ENV
+      - name: The documented command refuses while the release is not announced
+        if: ${{ matrix.method == 'one-command' && env.WM_STATUS != 'ready' }}
+        shell: powershell
+        run: |
+          $f = "$env:TEMP\whispermedical-install.ps1"; iwr -UseBasicParsing 'https://twonezerotwo-hue.github.io/whispermedical-downloads/install/install-windows.ps1' -OutFile $f; powershell -NoProfile -ExecutionPolicy Bypass -File $f
+          "exit code $LASTEXITCODE"
+          if ($LASTEXITCODE -ne 3) { throw "the plain command must stop with code 3 while the release is not announced" }
+          if (Test-Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{6F0B7C52-3A1E-4E7D-9C54-8D2A7B1E4F60}_is1') { throw "something was installed" }
+          $global:LASTEXITCODE = 0          # the step's own result is the checks above, not the (expected) exit code 3 of the command
+      - name: Install - ONE COMMAND (the exact line of the README; the test switches only allow the unannounced release and keep the program from starting)
+        if: ${{ matrix.method == 'one-command' }}
+        shell: powershell
+        env:
+          WHISPERMEDICAL_ALLOW_UNANNOUNCED: "1"
+          WHISPERMEDICAL_NO_LAUNCH: "1"
+        run: |
+          $f = "$env:TEMP\whispermedical-install.ps1"; iwr -UseBasicParsing 'https://twonezerotwo-hue.github.io/whispermedical-downloads/install/install-windows.ps1' -OutFile $f; powershell -NoProfile -ExecutionPolicy Bypass -File $f
+          "exit code $LASTEXITCODE"
+          if ($LASTEXITCODE -ne 0) { throw "the one-command installation failed" }
+          if (Test-Path "$env:TEMP\WhisperMedicalInstall") { throw "the downloaded installer program was left behind" }
+      - name: Install - ONE CLICK (the installer program of the manifest, downloaded like a visitor)
+        if: ${{ matrix.method == 'one-click' }}
+        shell: pwsh
+        run: |
+          Remove-Item Env:GH_TOKEN, Env:GITHUB_TOKEN -ErrorAction SilentlyContinue
+          Invoke-WebRequest $env:WM_BOOT_URL -OutFile boot.exe
+          if ((Get-FileHash boot.exe -Algorithm SHA256).Hash.ToLower() -ne $env:WM_BOOT_SHA) { throw "the installer program differs from the manifest" }
+          $p = Start-Process .\boot.exe -ArgumentList '--console','--unattended','--no-launch' -Wait -PassThru -RedirectStandardOutput boot.out.txt -RedirectStandardError boot.err.txt
+          Get-Content boot.out.txt | Select-Object -Last 15
+          if ($p.ExitCode -ne 0) { Get-Content boot.err.txt; throw "installer exit code $($p.ExitCode)" }
+      - name: Installed program - files, model, then offline start, transcription
+        shell: pwsh
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          $key = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{6F0B7C52-3A1E-4E7D-9C54-8D2A7B1E4F60}_is1'
+          $dir = (Get-ItemProperty $key).InstallLocation
+          $exe = Join-Path $dir 'MedicalLectureTranscriber.exe'
+          if (-not (Test-Path $exe)) { throw "the program was not installed" }
+          $model = "$env:LOCALAPPDATA\MedicalLectureTranscriber\models\whisper-large-v3"
+          if (-not (Test-Path "$model\model.bin")) { throw "the speech model was not placed" }
+          if (Test-Path "$env:LOCALAPPDATA\WhisperMedicalInstaller\cache") { throw "temporary installer files were left behind" }
+          New-NetFirewallRule -DisplayName "block-whispermedical" -Direction Outbound -Action Block -Program $exe | Out-Null
+          $env:PATH = "$env:SystemRoot\system32;$env:SystemRoot"
+          $st = Start-Process $exe -ArgumentList '--selftest', "$PWD\selftest.json" -Wait -PassThru
+          $r = Get-Content selftest.json -Raw | ConvertFrom-Json
+          $r.checks | ForEach-Object { "{0,-18} {1}" -f $_.name, $(if ($_.ok) {'ok'} else {'FAIL'}) }
+          if (-not $r.ok) { throw "self-test failed" }
+          Invoke-WebRequest $env:JFK_URL -OutFile jfk.flac
+          $env:MLT_ALLOW_MULTIPLE = "1"
+          Start-Process $exe -ArgumentList '--autorun', "$PWD\jfk.flac", '--result', "$PWD\result.json", '--timeout', '1500', '--language', 'en' -Wait | Out-Null
+          $res = Get-Content result.json -Raw | ConvertFrom-Json
+          if ($res.state -ne 'completed') { throw "transcription did not complete: $($res.state)" }
+          $text = (Get-Content (Join-Path $res.output_dir 'local_raw_transcript.txt') -Raw).ToLower()
+          "transcript: $text"
+          if ($text -notmatch 'ask not what your country can do for you') { throw "unexpected transcript" }
+          Remove-NetFirewallRule -DisplayName "block-whispermedical"
+      - name: Uninstall
+        shell: pwsh
+        run: |
+          $key = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{6F0B7C52-3A1E-4E7D-9C54-8D2A7B1E4F60}_is1'
+          $dir = (Get-ItemProperty $key).InstallLocation
+          $u = Get-ChildItem $dir -Filter 'unins*.exe' | Select-Object -First 1
+          Start-Process $u.FullName -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait
+          Start-Sleep 5
+          if (Test-Path (Join-Path $dir 'MedicalLectureTranscriber.exe')) { throw "the program is still installed" }
+          "uninstalled"
+
+  mac:
+    needs: unit
+    runs-on: macos-15-intel
+    timeout-minutes: 90
+    steps:
+      - name: Runner is an Intel Mac
+        run: |
+          uname -m; sw_vers
+          test "$(uname -m)" = "x86_64"
+      - name: What does the published manifest offer for Intel Mac?
+        run: |
+          curl -fsSL "https://twonezerotwo-hue.github.io/whispermedical-downloads/release-manifest.json?x=$RANDOM" -o m.json
+          python3 - <<'EOF' >> "$GITHUB_ENV"
+          import json
+          m = json.load(open("m.json"))
+          e = m.get("mac_intel", {})
+          print("MAC_PRODUCT=" + m.get("product_version", ""))
+          print("MAC_VERSION=" + e.get("version", ""))
+          print("MAC_STATUS=" + e.get("status", ""))
+          EOF
+          cat m.json | head -12
+      - name: Intel Mac 4.0.0 does not exist yet - the documented command refuses and installs nothing
+        if: ${{ env.MAC_VERSION != env.MAC_PRODUCT }}
+        run: |
+          set +e
+          curl -fsSL --proto '=https' 'https://twonezerotwo-hue.github.io/whispermedical-downloads/install/install-macos.sh' -o /tmp/whispermedical-install.sh && bash /tmp/whispermedical-install.sh
+          code=$?
+          echo "exit code $code"
+          test "$code" -eq 3
+          test ! -d "/Applications/Medical Lecture Transcriber.app"
+          echo "Intel Mac $MAC_PRODUCT: not available yet (newest Mac build in the list: $MAC_VERSION) - NOT INSTALLED, as required"
+      - name: Install - ONE COMMAND (the exact line of the README; MLT_ALLOW_UNANNOUNCED only lets the test install a verified but unannounced release)
+        if: ${{ env.MAC_VERSION == env.MAC_PRODUCT }}
+        env:
+          MLT_ALLOW_UNANNOUNCED: "1"
+        run: |
+          curl -fsSL --proto '=https' 'https://twonezerotwo-hue.github.io/whispermedical-downloads/install/install-macos.sh' -o /tmp/whispermedical-install.sh && bash /tmp/whispermedical-install.sh
+          test -d "/Applications/Medical Lecture Transcriber.app"
+          test ! -d "$HOME/Library/Caches/WhisperMedicalInstaller"
+      - name: Installed app - offline start and transcription
+        if: ${{ env.MAC_VERSION == env.MAC_PRODUCT }}
+        run: |
+          APP="/Applications/Medical Lecture Transcriber.app"; EXE="$APP/Contents/MacOS/MedicalLectureTranscriber"
+          BLOCK='(version 1)(allow default)(deny network*)(allow network* (remote unix-socket))(allow network* (remote ip "localhost:*"))'
+          curl -fsSL "$JFK_URL" -o "$RUNNER_TEMP/jfk.flac"
+          env -i HOME="$RUNNER_TEMP/home" PATH=/usr/bin:/bin:/usr/sbin:/sbin QT_QPA_PLATFORM=offscreen MLT_ALLOW_MULTIPLE=1 sandbox-exec -p "$BLOCK" "$EXE" --autorun "$RUNNER_TEMP/jfk.flac" --result "$RUNNER_TEMP/result.json" --timeout 1500 --language en || true
+          python3 - <<'EOF'
+          import json, os, pathlib
+          r = json.load(open(os.environ["RUNNER_TEMP"] + "/result.json"))
+          assert r["state"] == "completed", r
+          text = (pathlib.Path(r["output_dir"]) / "local_raw_transcript.txt").read_text().lower()
+          print(text)
+          assert "ask not what your country can do for you" in text
+          EOF
+          rm -rf "/Applications/Medical Lecture Transcriber.app"

@@ -5,6 +5,8 @@
     python scripts/sitetool.py set-verified windows RUN_URL            record that the anonymous download + real install + start + transcription test passed
     python scripts/sitetool.py set-status windows ready                refused unless the platform was verified (and, if required, the owner confirmed the licence notices in the workflow)
     python scripts/sitetool.py redirects                               rewrite latest/windows/index.html and latest/mac-intel/index.html from the manifest
+    python scripts/sitetool.py set-product 4.0.0                       the version every platform has to reach before its installer is offered (the one-command installers check it)
+    python scripts/sitetool.py validate                                check the manifest for the rules below; exit 1 with the problems listed
 
 A platform button on the landing page is enabled only when its entry says "status": "ready". Nothing here uploads files; it only edits small text files.
 """
@@ -13,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -42,6 +45,56 @@ def save(data: dict, path: Path | None = None) -> None:
     (path or MANIFEST).write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
 
 
+HOSTS = ("github.com", ".githubusercontent.com", ".github.io")
+SHA = re.compile(r"^[0-9a-f]{64}$")
+
+
+def allowed_url(url: str) -> bool:
+    m = re.match(r"^https://([^/:]+)/", url or "")
+    return bool(m) and any(m.group(1) == h or (h.startswith(".") and m.group(1).endswith(h)) for h in HOSTS)
+
+
+def problems(data: dict) -> list[str]:
+    """The rules of release-manifest.json: the installers (button, one-click program, one-command scripts) trust nothing else."""
+    out: list[str] = []
+    product = data.get("product_version")
+    if not product or not re.match(r"^\d+\.\d+\.\d+$", product):
+        out.append("product_version is missing or not x.y.z")
+    for key in ("windows", "mac_intel"):
+        entry = data.get(key)
+        if not entry:
+            out.append(f"{key}: no entry")
+            continue
+        if entry.get("status") not in ("pending", "uploaded", "ready"):
+            out.append(f"{key}: status {entry.get('status')!r} is not pending / uploaded / ready")
+        if entry.get("status") in ("uploaded", "ready"):
+            boot = entry.get("bootstrapper") or {}
+            if not allowed_url(boot.get("url", "")) or not SHA.match(boot.get("sha256", "")) or not boot.get("size"):
+                out.append(f"{key}: the bootstrapper needs an https github address, a SHA-256 and a size")
+            payload = entry.get("payload") or {}
+            files = ([payload["setup"]] if payload.get("setup") else []) + [f for f in (payload.get("model") or {}).get("files", [])] + \
+                    [part for part in ((payload.get("dmg") or {}).get("parts") or [])]
+            if not files:
+                out.append(f"{key}: no payload files")
+            for f in files:
+                if not SHA.match(f.get("sha256", "")) or not f.get("size"):
+                    out.append(f"{key}: {f.get('name')}: SHA-256 or size missing")
+                for u in ([f["url"]] if f.get("url") else []) + [p["url"] for p in f.get("parts", [])]:
+                    if not allowed_url(u):
+                        out.append(f"{key}: {f.get('name')}: address {u!r} is not an https github address")
+            if "download_bytes" not in entry or not entry.get("version") or not entry.get("architecture"):
+                out.append(f"{key}: version, architecture and download_bytes are required")
+        if entry.get("status") == "ready":
+            if not (entry.get("verification") or {}).get("passed"):
+                out.append(f"{key}: ready without a passed end-to-end verification")
+            if product and entry.get("version") != product:
+                out.append(f"{key}: ready, but version {entry.get('version')} is not the product version {product}")
+    text = json.dumps(data)
+    if re.search(r"(?i)(<[A-Z_ ]+>|\bTODO\b|\bexample\.com\b|\bPLACEHOLDER\b)", text):
+        out.append("the manifest contains a placeholder")
+    return out
+
+
 def ready(entry: dict) -> bool:
     return bool(entry) and entry.get("status") == "ready" and bool((entry.get("bootstrapper") or {}).get("url"))
 
@@ -69,11 +122,23 @@ def main(argv=None) -> int:
     v = sub.add_parser("set-verified")
     v.add_argument("platform")
     v.add_argument("run_url")
+    sub.add_parser("validate")
+    pv = sub.add_parser("set-product")
+    pv.add_argument("version")
     s = sub.add_parser("set-status")
     s.add_argument("platform")
     s.add_argument("status", choices=["pending", "uploaded", "ready"])
     args = parser.parse_args(argv)
     data = load()
+    if args.cmd == "validate":
+        found = problems(data)
+        print("\n".join(found) if found else "release-manifest.json: OK")
+        return 1 if found else 0
+    if args.cmd == "set-product":
+        data["product_version"] = args.version
+        save(data)
+        write_redirects(data)
+        return 0
     if args.cmd == "show":
         print(json.dumps({k: (v.get("status") if isinstance(v, dict) else v) for k, v in data.items()}, indent=2))
         return 0
@@ -88,7 +153,9 @@ def main(argv=None) -> int:
         if not (data.get(key, {}).get("bootstrapper") or {}).get("url"):
             print("refused: the platform has no bootstrapper entry")
             return 1
-        data[key]["verification"] = {"passed": True, "run": args.run_url, "date": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+        now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        data[key]["verification"] = {"passed": True, "run": args.run_url, "date": now}
+        data[key]["release_date"] = now[:10]
     elif args.cmd == "set-status":
         key = KEYS[args.platform]
         if args.status == "ready" and not (data.get(key, {}).get("bootstrapper") or {}).get("url"):

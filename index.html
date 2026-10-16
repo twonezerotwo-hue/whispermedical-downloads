@@ -31,6 +31,11 @@
   footer { margin-top:40px; padding-top:18px; border-top:1px solid var(--line); color:var(--muted); font-size:.88rem; display:flex; flex-wrap:wrap; gap:6px 18px; }
   footer a { color:var(--muted); }
   #version { font-weight:600; }
+  details.cmd { margin-top:4px; font-size:.92rem; }
+  details.cmd summary { cursor:pointer; color:var(--brand); }
+  details.cmd pre { margin:8px 0 6px; padding:10px 12px; background:var(--bg); border:1px solid var(--line); border-radius:8px; overflow-x:auto; white-space:pre-wrap; word-break:break-all; font:.82rem/1.45 ui-monospace,Menlo,Consolas,monospace; }
+  details.cmd button { font:inherit; font-size:.85rem; padding:4px 12px; border:1px solid var(--line); border-radius:8px; background:var(--card); color:var(--ink); cursor:pointer; }
+  details.cmd .where { color:var(--muted); font-size:.85rem; }
 </style>
 </head>
 <body>
@@ -45,6 +50,12 @@
       <div class="meta">Windows 10/11 · x64</div>
       <a class="btn" id="btn-windows" href="downloads/install-windows.html" aria-disabled="true">Checking&hellip;</a>
       <div class="note" id="note-windows"></div>
+      <details class="cmd" id="cmd-windows" hidden>
+        <summary>Or install with one command</summary>
+        <div class="where">Open <b>PowerShell</b> (Start menu &rarr; type PowerShell &rarr; Enter), paste, press Enter:</div>
+<pre><code id="code-windows">$f = "$env:TEMP\whispermedical-install.ps1"; iwr -UseBasicParsing 'https://twonezerotwo-hue.github.io/whispermedical-downloads/install/install-windows.ps1' -OutFile $f; powershell -NoProfile -ExecutionPolicy Bypass -File $f</code></pre>
+        <button type="button" data-copy="code-windows">Copy</button>
+      </details>
     </section>
     <section class="card" id="card-mac">
       <span class="badge">Recommended for this computer</span>
@@ -52,6 +63,12 @@
       <div class="meta">macOS 12+ · Intel x86_64 (2019 and similar)</div>
       <a class="btn" id="btn-mac" href="downloads/install-mac-intel.html" aria-disabled="true">Checking&hellip;</a>
       <div class="note" id="note-mac"></div>
+      <details class="cmd" id="cmd-mac" hidden>
+        <summary>Or install with one command</summary>
+        <div class="where">Open <b>Terminal</b> (Spotlight &rarr; Terminal), paste, press Enter:</div>
+<pre><code id="code-mac">curl -fsSL --proto '=https' 'https://twonezerotwo-hue.github.io/whispermedical-downloads/install/install-macos.sh' -o /tmp/whispermedical-install.sh &amp;&amp; bash /tmp/whispermedical-install.sh</code></pre>
+        <button type="button" data-copy="code-mac">Copy</button>
+      </details>
     </section>
   </div>
 
@@ -84,23 +101,33 @@
   else if (isMac) document.getElementById("card-mac").classList.add("rec");
 
   function gb(bytes) { return (bytes / 1e9).toFixed(1) + " GB"; }
-  function apply(key, id, label, entry, extra) {
-    var btn = document.getElementById("btn-" + id), note = document.getElementById("note-" + id);
-    if (entry && entry.status === "ready" && entry.bootstrapper && entry.bootstrapper.url) {
+  function apply(key, id, label, entry, extra, product) {
+    var btn = document.getElementById("btn-" + id), note = document.getElementById("note-" + id), cmd = document.getElementById("cmd-" + id);
+    var current = !product || (entry && entry.version === product);          // an older build is never offered as the current version
+    if (entry && entry.status === "ready" && current && entry.bootstrapper && entry.bootstrapper.url) {
       btn.href = entry.bootstrapper.url;
       btn.textContent = "Download for " + label;
       btn.removeAttribute("aria-disabled");
       note.textContent = "Version " + entry.version + " · downloads about " + gb(entry.download_bytes || 0) + " during installation. " + extra;
+      if (cmd) cmd.hidden = false;
     } else {
       btn.textContent = "Not available yet";
       btn.setAttribute("aria-disabled", "true");
-      note.textContent = "This download is being prepared and will appear here when it is complete and verified.";
+      note.textContent = (product ? "Version " + product + " for " + label + " is being prepared" : "This download is being prepared") + " and will appear here when it is complete and verified.";
+      if (cmd) cmd.hidden = true;
     }
   }
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-copy]"); if (!b) return;
+    var text = document.getElementById(b.dataset.copy).textContent;
+    (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject()).then(function () { b.textContent = "Copied"; }, function () {
+      var r = document.createRange(); r.selectNodeContents(document.getElementById(b.dataset.copy)); var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r); b.textContent = "Selected - press Ctrl+C / Cmd+C";
+    });
+  });
   fetch("release-manifest.json", { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (m) {
-    document.getElementById("version").textContent = m.version || "";
-    apply("windows", "windows", "Windows", m.windows, "Windows may ask you to confirm.");
-    apply("mac_intel", "mac", "Intel Mac", m.mac_intel, "First start: right-click the app and choose Open.");
+    document.getElementById("version").textContent = m.product_version || m.version || "";
+    apply("windows", "windows", "Windows", m.windows, "Windows may ask you to confirm.", m.product_version);
+    apply("mac_intel", "mac", "Intel Mac", m.mac_intel, "First start: right-click the app and choose Open.", m.product_version);
   }).catch(function () {
     ["windows", "mac"].forEach(function (id) {
       var b = document.getElementById("btn-" + id);
