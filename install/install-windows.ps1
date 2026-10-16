@@ -103,6 +103,10 @@ function Install-WhisperMedical {
     if (-not (Test-AllowedUrl $boot.url)) { throw (New-InstallError 4 'The installer address in the release list is not a secure official address.') }
     $gb = [Math]::Round($entry.download_bytes / 1e9, 1)
     Write-Host ("WhisperMedical $($entry.version) for Windows ($gb GB download, about 8 GB free disk space needed during installation).")
+    if ([Version]$entry.version -ge [Version]'4.1.0') {
+        Write-Host 'Completed transcripts are shared with the developer by default to improve transcription quality. You can turn this off in Settings -> Privacy & Data.'
+        Write-Host 'Your audio, video, PDF files and pictures are never sent.'
+    }
 
     $folder = Join-Path ([IO.Path]::GetTempPath()) 'WhisperMedicalInstall'
     New-Item -ItemType Directory -Force -Path $folder | Out-Null

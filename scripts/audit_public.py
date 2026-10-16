@@ -25,6 +25,18 @@ PATTERNS = {
 }
 
 
+BRAND_MAGIC = {".png": bytes.fromhex("89504e470d0a1a0a"), ".ico": bytes.fromhex("00000100")}     # first bytes of a PNG and of an ICO file
+BRAND_MAX_BYTES = 600_000
+
+
+def is_brand_image(path: Path) -> bool:
+    magic = BRAND_MAGIC.get(path.suffix.lower())
+    if magic is None or path.stat().st_size > BRAND_MAX_BYTES:
+        return False
+    with path.open("rb") as handle:
+        return handle.read(len(magic)) == magic
+
+
 def scan(root: Path) -> list[str]:
     problems = []
     for path in sorted(root.rglob("*")):
@@ -35,6 +47,10 @@ def scan(root: Path) -> list[str]:
             continue
         if path.suffix.lower() in BAD_SUFFIXES or path.stat().st_size > 2_000_000:
             problems.append(f"{rel}: file type / size must not be published ({path.stat().st_size} bytes)")
+            continue
+        if rel.startswith("assets/"):                                 # the logo and icons of the download page: small PNG / ICO files, checked by their first bytes, nothing else
+            if not is_brand_image(path):
+                problems.append(f"{rel}: only small genuine PNG / ICO images may live in assets/")
             continue
         try:
             text = path.read_text(encoding="utf-8")

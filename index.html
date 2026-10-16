@@ -4,14 +4,21 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>WhisperMedical</title>
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/favicon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <meta name="description" content="WhisperMedical: offline medical lecture transcription and study. Whisper Large-v3 included. Windows and Intel Mac.">
 <style>
-  :root { --bg:#f4f6f9; --card:#ffffff; --ink:#14213d; --muted:#5b6b82; --line:#dde3ec; --brand:#1d5fd1; --brand-ink:#ffffff; --ok:#1c7c4d; --off:#c9d1de; }
-  @media (prefers-color-scheme: dark) { :root { --bg:#0f1624; --card:#17213a; --ink:#eef2fb; --muted:#9db0cf; --line:#2a3858; --brand:#4b88f0; --brand-ink:#0b1220; --ok:#4fd08f; --off:#2d3a58; } }
+  :root { --bg:#f4f6f9; --card:#ffffff; --ink:#14213d; --muted:#5b6b82; --line:#dde3ec; --brand:#0e8a8e; --brand-ink:#ffffff; --gold:#9a6f12; --ok:#1c7c4d; --off:#c9d1de; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#0f1624; --card:#17213a; --ink:#eef2fb; --muted:#9db0cf; --line:#2a3858; --brand:#2cc6c6; --brand-ink:#06141f; --gold:#e0b04a; --ok:#4fd08f; --off:#2d3a58; } }
   * { box-sizing: border-box; }
   body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
   main { max-width:760px; margin:0 auto; padding:48px 20px 64px; }
   h1 { font-size:2.4rem; margin:0 0 4px; letter-spacing:-0.02em; }
+  .head { display:flex; align-items:center; gap:18px; margin-bottom:6px; }
+  .head img { width:84px; height:84px; flex:none; }
+  .head .sub { margin:0 0 32px; }
   .sub { color:var(--muted); font-size:1.15rem; margin:0 0 32px; }
   .grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
   @media (max-width:640px) { .grid { grid-template-columns:1fr; } }
@@ -40,8 +47,13 @@
 </head>
 <body>
 <main>
-  <h1>WhisperMedical</h1>
-  <p class="sub">Offline Medical Lecture Transcription &amp; Study</p>
+  <div class="head">
+    <img src="assets/logo-symbol.png" alt="WhisperMedical logo" width="84" height="84">
+    <div>
+      <h1>WhisperMedical</h1>
+      <p class="sub">Medical lecture transcription &amp; study</p>
+    </div>
+  </div>
 
   <div class="grid">
     <section class="card" id="card-windows">

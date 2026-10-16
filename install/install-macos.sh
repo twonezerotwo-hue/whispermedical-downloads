@@ -121,6 +121,9 @@ NEED_KB=$(( (PIN_DMG_SIZE / 1024) * 2 + 3000000 ))        # the image + the inst
 [ "${MLT_TEST:-0}" = "1" ] && NEED_KB=100
 [ "$(free_kb "$CACHE")" -ge "$NEED_KB" ] || fail "Not enough free disk space: about $((NEED_KB / 1000000)) GB are needed during installation; $(( $(free_kb "$CACHE") / 1000000 )) GB are free." 2
 emit "S|WhisperMedical $PIN_VERSION for Intel Macs ($((PIN_DMG_SIZE / 1000000000)) GB download)"
+case "$PIN_VERSION" in 0.*|1.*|2.*|3.*|4.0.*) ;; *)       # from 4.1.0 on: said before anything is downloaded
+    emit "S|Completed transcripts are shared with the developer by default to improve transcription quality. You can turn this off in Settings -> Privacy & Data. Your audio, video, PDF files and pictures are never sent." ;;
+esac
 
 # ---------------------------------------------------------------------------------------------------------------- download
 download() {   # url dest size

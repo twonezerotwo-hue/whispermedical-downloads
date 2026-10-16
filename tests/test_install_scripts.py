@@ -267,3 +267,49 @@ def test_an_address_that_is_not_official_is_refused_without_a_request(fake_insta
     finally:
         srv.close()
     assert done.returncode == 4 and "secure official address" in done.stdout + done.stderr and not srv.hits
+
+
+# --------------------------------------------------------------------------------------------------------- 4.1.0: the sharing notice before anything is installed
+NOTICE = "Completed transcripts are shared with the developer by default to improve transcription quality. You can turn this off in Settings -> Privacy & Data."
+
+
+@windows_only
+@pytest.mark.parametrize("version, shown", [("4.0.0", False), ("3.1.0", False), ("4.1.0", True), ("9.9.9", True)])
+def test_the_one_command_installer_states_the_sharing_default_from_4_1_0_on(fake_installer, tmp_path, version, shown):
+    srv = serve(fake_installer, tmp_path, product=version, version=version)
+    try:
+        done, args, _ = run_script(srv, tmp_path)
+    finally:
+        srv.close()
+    assert done.returncode == 0 and (NOTICE in done.stdout) == shown, done.stdout + done.stderr
+    assert ("never sent" in done.stdout) == shown
+
+
+def test_the_mac_engine_and_the_bootstrapper_carry_the_same_notice():
+    assert NOTICE in read(SH) or "Completed transcripts are shared with the developer by default to improve transcription quality" in read(SH)
+    cs = read(ROOT / "bootstrap" / "windows" / "WhisperMedicalInstaller.cs")
+    assert NOTICE in cs and "new Version(4, 1, 0)" in cs and "[notice] " in cs
+
+
+def test_the_download_page_is_branded_and_the_privacy_text_is_true_for_every_version():
+    for name in ("favicon.ico", "favicon-32.png", "favicon-192.png", "apple-touch-icon.png", "logo.png", "logo-symbol.png"):
+        assert (ROOT / "assets" / name).stat().st_size > 400, name
+    page, readme = read(ROOT / "index.html"), read(ROOT / "README.md")
+    assert 'rel="icon" href="assets/favicon.ico"' in page and 'src="assets/logo-symbol.png"' in page and "<h1>WhisperMedical</h1>" in page
+    assert "Version 4.1.0 and newer" in readme and "shared with the developer by default" in readme and "Settings → Privacy & Data" in readme
+    assert "stay on your computer. The installer" not in readme                                   # the old unqualified claim is gone
+    for text in (page, readme):
+        assert "MedLecture" not in text and "MEDLECTURE" not in text
+
+
+def test_the_public_audit_accepts_only_genuine_small_brand_images_under_assets(tmp_path):
+    import audit_public
+
+    png = bytes.fromhex("89504e470d0a1a0a") + b"\x00" * 64
+    (tmp_path / "assets").mkdir()
+    (tmp_path / "assets" / "logo.png").write_bytes(png)
+    (tmp_path / "assets" / "fake.png").write_bytes(b"MZ" + b"\x00" * 64)                 # an executable named like an image
+    (tmp_path / "logo.png").write_bytes(png)                                              # an image outside assets/
+    (tmp_path / "assets" / "big.png").write_bytes(png + b"\x00" * 700_000)
+    found = " ".join(audit_public.scan(tmp_path))
+    assert "assets/logo.png" not in found and "assets/fake.png: only" in found and "assets/big.png: only" in found and " logo.png: binary file" in " " + found.replace("assets/", "").replace("only small genuine PNG / ICO images may live in", "")

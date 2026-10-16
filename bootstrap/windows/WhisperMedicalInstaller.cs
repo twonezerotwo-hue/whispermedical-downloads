@@ -386,9 +386,20 @@ namespace WhisperMedical
         }
     }
 
+    // From 4.1.0 on, completed transcripts are shared with the developer by default (Settings -> Privacy & Data): the installer says so BEFORE anything is downloaded.
+    static class Notice
+    {
+        public const string Text = "Completed transcripts are shared with the developer by default to improve transcription quality. You can turn this off in Settings -> Privacy & Data.";
+        public const string Detail = "Your audio, video, PDF files and pictures are never sent.";
+        public static bool Applies()
+        {
+            try { return new Version(Pins.Version) >= new Version(4, 1, 0); } catch (Exception) { return false; }
+        }
+    }
+
     class InstallerForm : Form, IReporter
     {
-        Label title, step, detail;
+        Label title, step, detail, notice;
         ProgressBar bar;
         Button main, cancel;
         Engine engine;
@@ -402,16 +413,19 @@ namespace WhisperMedical
         {
             this.factory = factory; this.unattended = unattended;
             Text = "WhisperMedical Installer";
-            ClientSize = new Size(540, 230);
+            bool notices = Notice.Applies();
+            ClientSize = new Size(540, notices ? 312 : 230);
             FormBorderStyle = FormBorderStyle.FixedDialog; MaximizeBox = false; StartPosition = FormStartPosition.CenterScreen;
             Font = new Font("Segoe UI", 9.5f);
             title = new Label { Text = "WhisperMedical", Font = new Font("Segoe UI", 16f, FontStyle.Bold), Left = 20, Top = 16, Width = 500, Height = 34 };
             step = new Label { Text = "WhisperMedical will download about 3.6 GB (the program and the Whisper Large-v3 speech model), check them and install. Nothing more is downloaded later.", Left = 22, Top = 58, Width = 496, Height = 56 };
             bar = new ProgressBar { Left = 22, Top = 122, Width = 496, Height = 22, Maximum = 1000, Visible = false };
             detail = new Label { Text = "", Left = 22, Top = 150, Width = 496, Height = 22, ForeColor = Color.DimGray };
-            main = new Button { Text = "Install", Left = 330, Top = 184, Width = 90, Height = 30 };
-            cancel = new Button { Text = "Cancel", Left = 428, Top = 184, Width = 90, Height = 30 };
-            Controls.AddRange(new Control[] { title, step, bar, detail, main, cancel });
+            int buttons = notices ? 266 : 184;
+            notice = new Label { Text = Notice.Text + "\r\n" + Notice.Detail, Left = 22, Top = 178, Width = 496, Height = 76, Visible = notices };
+            main = new Button { Text = "Install", Left = 330, Top = buttons, Width = 90, Height = 30 };
+            cancel = new Button { Text = "Cancel", Left = 428, Top = buttons, Width = 90, Height = 30 };
+            Controls.AddRange(new Control[] { title, step, bar, detail, notice, main, cancel });
             main.Click += delegate { Start(); };
             cancel.Click += delegate { if (engine != null && worker != null && worker.IsAlive) { engine.Cancel(); cancel.Enabled = false; } else Close(); };
             Shown += delegate { if (unattended) Start(); };
@@ -490,6 +504,7 @@ namespace WhisperMedical
             if (console)
             {
                 AttachConsole(-1);                                           // the window-less program writes to the console it was started from
+                if (Notice.Applies()) Console.WriteLine("[notice] " + Notice.Text);
                 ConsoleReporter r = new ConsoleReporter();
                 try { make(r).Run(); Console.WriteLine("[done]"); return 0; }
                 catch (Exception ex) { Console.WriteLine("[error] " + ex.Message); return 1; }

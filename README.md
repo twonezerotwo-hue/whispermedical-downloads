@@ -1,3 +1,5 @@
+<p align="center"><img src="assets/logo.png" alt="WhisperMedical" width="220"></p>
+
 # WhisperMedical
 
 **Offline medical lecture transcription and study assistant.** Record a lecture, drop the file in, get an accurate transcript with medical terms checked in context,
@@ -69,7 +71,13 @@ The Mac app is not notarized by Apple yet: **right-click the app → Open → Op
 
 ## Privacy
 
-Audio, video, PDFs and transcripts stay on your computer. The installer only contacts the official download location of this project (github.com / github.io) to fetch the program.
+Transcription, medical term correction, PDF reading and text recognition run on your computer; your audio, video, PDF files and pictures never leave it.
+
+**Version 4.1.0 and newer:** completed transcripts are shared with the developer by default to improve transcription quality. You are told during installation and on the first start, and you can turn it off at any
+time in **Settings → Privacy & Data** (turning it off also deletes anything still waiting to be sent). What is sent: the transcript text, the lecture name, the languages, the program version, a random installation
+number and the time - never audio, video, PDF files, pictures, file paths, your user name or any hardware number. Versions 3.x and 4.0.x share nothing.
+
+The installer itself only contacts the official download location of this project (github.com / github.io) to fetch the program.
 
 ## For developers
 
