@@ -91,7 +91,7 @@ def test_entries_follow_the_pins_and_never_say_ready(tmp_path):
     layout = json.loads((Path(be.ROOT) / "scripts" / "model_parts.json").read_text(encoding="utf-8"))
     w = be.windows_entry(pins, layout, boot)
     assert w["status"] == "uploaded" and w["payload"]["setup"]["sha256"] == pins["setup"]["sha256"]
-    assert w["bootstrapper"]["url"].startswith("https://github.com/twonezerotwo-hue/whispermedical-downloads/releases/download/windows-v3.1.0/")
+    assert w["bootstrapper"]["url"].startswith("https://github.com/twonezerotwo-hue/whispermedical-downloads/releases/download/windows-v" + pins["version"] + "/")
     model = {f["name"]: f for f in w["payload"]["model"]["files"]}
     assert [p["size"] for p in model["model.bin"]["parts"]] == [1992294400, 1094989837] and sum(p["size"] for p in model["model.bin"]["parts"]) == model["model.bin"]["size"]
     assert w["download_bytes"] == pins["setup"]["size"] + sum(f["size"] for f in layout["files"])

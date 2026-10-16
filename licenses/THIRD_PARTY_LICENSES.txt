@@ -1,7 +1,9 @@
-WhisperMedical (Medical Lecture Transcriber) 3.1.0 - third-party components
-==========================================================================
+WhisperMedical (Medical Lecture Transcriber) - third-party components
+=====================================================================
 
-WhisperMedical runs on your computer; transcription, medical-term correction, PDF reading and text recognition do not send anything to a server.
+Windows package: version 4.0.0.   Intel Mac package: version 3.1.0 (the 4.0.0 Mac package is not published yet).
+
+WhisperMedical runs on your computer; transcription, medical-term correction, study material, PDF reading and text recognition do not send anything to a server.
 This file lists what is inside the Windows and the Intel Mac packages and under which licences. The full licence texts of the Python packages are
 inside the installed program (Windows: next to each library; Mac: Medical Lecture Transcriber.app/Contents/Resources/licenses/).
 
@@ -12,23 +14,34 @@ Both platforms
   Qt 6 / PySide6 / shiboken6 (LGPL-3.0): the user interface. The Qt libraries are separate files in the program folder and can be replaced by your own build.
   Whisper large-v3 (speech model): see MODEL_LICENSES.txt.
 
-Windows package only
+Windows package 4.0.0 only
   NVIDIA CUDA runtime libraries (cuBLAS, cuDNN, CUDA runtime), redistributed unmodified under the NVIDIA CUDA Toolkit / cuDNN licence agreements; they are
   used only when an NVIDIA GPU is present.
-  FFmpeg command-line tools (ffmpeg.exe, ffprobe.exe): an LGPL-2.1+ build without GPL components, from https://github.com/BtbN/FFmpeg-Builds.
+  FFmpeg command-line tools (ffmpeg.exe, ffprobe.exe) and the FFmpeg libraries used by PyAV 18.1.0 (BSD-3-Clause, the Python binding to FFmpeg: libavcodec 62,
+  libavformat 62, libavutil 60, libswscale 9, libswresample 6, libavfilter 11, libavdevice 62): an LGPL build of FFmpeg 8.1 (release n8.1.3), configured without
+  --enable-gpl and --enable-nonfree and WITHOUT libx264 and libx265, from https://github.com/BtbN/FFmpeg-Builds. WhisperMedical only decodes audio and video.
+  The PyAV extension modules load these libraries by their plain file names, so they can be replaced by your own build of the same FFmpeg major version.
+  Codec libraries inside that build: SVT-AV1 (BSD-2-Clause + AOM patent licence), dav1d (BSD-2-Clause), libaom (BSD-2-Clause + patent licence), libvpx (BSD-3-Clause),
+  libopus (BSD-3-Clause), libmp3lame (LGPL-2.0+), VMAF (BSD-2-Clause + patent licence). Licence text: licenses\FFMPEG_LGPL_LICENSE.txt in the installed program.
+  Source of FFmpeg as shipped: https://github.com/FFmpeg/FFmpeg (commit 46d899d7a0, release/8.1 branch); build recipe: https://github.com/BtbN/FFmpeg-Builds.
   Text recognition uses the function built into Windows 10/11.
+  Medical knowledge database (a read-only file inside the program, 66,668 concepts, 263,054 terms): built only from sources that may be redistributed -
+    Medical Subject Headings (U.S. National Library of Medicine; courtesy of the NLM; a snapshot that may not reflect the most current MeSH),
+    Gene Ontology (CC BY 4.0, Gene Ontology Consortium), HGNC gene nomenclature (CC0), SCOWL English word lists (permissive notices; the SCOWL copyright text
+    is in medical_knowledge_public.db.NOTICE.txt inside the program) and the vocabulary written for this project. No UMLS data and no other licensed terminology is included.
 
-Intel Mac package only
+Intel Mac package 3.1.0 only
   Python 3.11 (PSF licence), PyInstaller bootloader (GPL-2.0-or-later with the exception that allows distributing the built program),
   RapidOCR (Apache-2.0) with its PP-OCR text detection / recognition models (Apache-2.0) from PaddleOCR, OpenCV (Apache-2.0), shapely (BSD-3-Clause; GEOS LGPL-2.1+),
   pyclipper (MIT).
 
-GPL components - IMPORTANT
-  Both packages contain PyAV 18.1.0 (BSD-3-Clause), the Python binding to FFmpeg, with the FFmpeg libraries that ship inside the PyAV wheel
+GPL components - IMPORTANT (Intel Mac package 3.1.0, and the Windows installer 3.1.0 that is superseded by 4.0.0)
+  These packages contain PyAV 18.1.0 (BSD-3-Clause), the Python binding to FFmpeg, with the FFmpeg libraries that ship inside the PyAV wheel
   (libavcodec 62, libavformat 62, libavutil 60, libswscale 9, libswresample 6, libavfilter 11, libavdevice 62). That FFmpeg build is made with the
   video encoders libx264 (core 165) and libx265 (soname 216), both GPL-2.0-or-later. FFmpeg only allows these encoders in a build that is itself licensed
-  under the GPL, so the FFmpeg libraries inside PyAV must be treated as GPL, NOT as LGPL-only. The same libraries ship in the Windows and in the Mac package;
-  the Mac package also contains the OpenCV wheel's own FFmpeg build with libx264 / libx265. WhisperMedical only DECODES audio and video; it never encodes video.
+  under the GPL, so the FFmpeg libraries inside PyAV must be treated as GPL, NOT as LGPL-only. The Mac package also contains the OpenCV wheel's own FFmpeg
+  build with libx264 / libx265 (configured with --enable-gpl). WhisperMedical only DECODES audio and video; it never encodes video.
+  The Windows package 4.0.0 does NOT contain these libraries. Whether the Mac package may be passed on in this form is a question for a lawyer.
   Other codec libraries in these builds: SVT-AV1 4.1.0 (BSD-2-Clause + AOM patent licence), dav1d (BSD-2-Clause), libvpx (BSD-3-Clause), libopus (BSD-3-Clause),
   libmp3lame (LGPL-2.0+), opencore-amr (Apache-2.0), libwebp (BSD-3-Clause), VMAF (BSD-2-Clause + patent) and, on Windows, Intel oneVPL (MIT) and
   NVIDIA / AMD codec headers.

@@ -1,13 +1,13 @@
 {
-  "version": "3.1.0",
+  "version": "4.0.0",
   "setup": {
     "name": "WhisperMedical-Setup-Windows-x64.exe",
-    "size": 512899446,
-    "sha256": "2597d1a48e67a78fc826ae629ad575e26ebf4a13e2d691bd7023a596afdca18f"
+    "size": 588053297,
+    "sha256": "2c8f8613c94367b496a507d6da9cd46e8b4d4bdd85b8533c5e3858998e4e9c2b"
   },
   "source_build": {
     "tests": {
-      "passed": 1247,
+      "passed": 1691,
       "failed": 0,
       "skipped": 1
     }
