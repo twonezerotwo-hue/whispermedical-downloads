@@ -427,13 +427,13 @@ namespace MELETRA
             }
             catch (Exception) { }
             int textLeft = symbol != null ? 84 : 22;
-            title = new Label { Text = "MELETRA", Font = new Font("Segoe UI", 16f, FontStyle.Bold), Left = textLeft, Top = 12, Width = 440, Height = 32 };
-            tagline = new Label { Text = "Medical Learning & Transcription", ForeColor = Color.DimGray, Left = textLeft, Top = 44, Width = 440, Height = 22 };
-            step = new Label { Text = "MELETRA will download about 3.6 GB (the program and the Whisper Large-v3 speech model), check them and install. Nothing more is downloaded later.", Left = 22, Top = 82, Width = 496, Height = 56 };
+            title = new Label { UseMnemonic = false, Text = "MELETRA", Font = new Font("Segoe UI", 16f, FontStyle.Bold), Left = textLeft, Top = 12, Width = 440, Height = 32 };
+            tagline = new Label { UseMnemonic = false, Text = "Medical Learning & Transcription", ForeColor = Color.DimGray, Left = textLeft, Top = 44, Width = 440, Height = 22 };
+            step = new Label { UseMnemonic = false, Text = "MELETRA will download about 3.6 GB (the program and the Whisper Large-v3 speech model), check them and install. Nothing more is downloaded later.", Left = 22, Top = 82, Width = 496, Height = 56 };
             bar = new ProgressBar { Left = 22, Top = 146, Width = 496, Height = 22, Maximum = 1000, Visible = false };
-            detail = new Label { Text = "", Left = 22, Top = 174, Width = 496, Height = 22, ForeColor = Color.DimGray };
+            detail = new Label { UseMnemonic = false, Text = "", Left = 22, Top = 174, Width = 496, Height = 22, ForeColor = Color.DimGray };
             int buttons = notices ? 302 : 216;
-            notice = new Label { Text = Notice.Text + "\r\n" + Notice.Detail, Left = 22, Top = 204, Width = 496, Height = 88, Visible = notices };
+            notice = new Label { UseMnemonic = false, Text = Notice.Text + "\r\n" + Notice.Detail, Left = 22, Top = 204, Width = 496, Height = 88, Visible = notices };
             main = new Button { Text = "Install", Left = 330, Top = buttons, Width = 90, Height = 30 };
             cancel = new Button { Text = "Cancel", Left = 428, Top = buttons, Width = 90, Height = 30 };
             Controls.AddRange(new Control[] { title, tagline, step, bar, detail, notice, main, cancel });

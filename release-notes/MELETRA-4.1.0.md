@@ -13,7 +13,7 @@ list and refuses anything that does not match, then installs MELETRA. It continu
 
 | File | What it is |
 |---|---|
-| `MELETRA-Installer-Windows.exe` | the one-click installer program (about 30 KB) |
+| `MELETRA-Installer-Windows.exe` | the one-click installer program (about 0.1 MB) |
 | `MELETRA-Setup-Windows-x64.exe` | the full MELETRA setup that the installer program downloads and runs (you do not need to download it yourself) |
 | `SHA256SUMS.txt` | the SHA-256 of both files above |
 

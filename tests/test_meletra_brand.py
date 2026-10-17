@@ -44,6 +44,7 @@ def test_the_installers_and_scripts_carry_the_new_names_and_keep_the_old_ones_on
     cs = read(ROOT / "bootstrap" / "windows" / "MELETRAInstaller.cs")
     assert "namespace MELETRA" in cs and '"MELETRA.exe"' in cs and 'Text = "MELETRA Installer"' in cs and '"MELETRAInstaller", "cache"' in cs
     assert old_names(cs.replace("WhisperMedicalInstaller", "")) == [] and cs.count("WhisperMedicalInstaller") == 1            # only the clean-up of the earlier installer's cache
+    assert cs.count("UseMnemonic = false") >= 5                                         # "Learning & Transcription" must show its ampersand
     build = read(ROOT / "bootstrap" / "windows" / "build.py")
     assert "MELETRA-Installer-Windows.exe" in build and "MELETRA-Setup-Windows-x64.exe" in build and "/win32icon" in build
     ps1 = read(ROOT / "install" / "install-windows.ps1")
