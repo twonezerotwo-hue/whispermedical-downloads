@@ -3,24 +3,23 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>WhisperMedical</title>
+<title>MELETRA - Medical Learning &amp; Transcription</title>
 <meta name="theme-color" content="#08121f">
 <link rel="icon" href="assets/favicon.ico" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
 <link rel="icon" type="image/png" sizes="192x192" href="assets/favicon-192.png">
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
-<meta name="description" content="WhisperMedical: offline medical lecture transcription and study. Whisper Large-v3 included. Windows and Intel Mac.">
+<meta name="description" content="MELETRA - Medical Learning &amp; Transcription: offline medical lecture transcription and study. Whisper Large-v3 included. Windows 10/11.">
 <style>
   :root { color-scheme: dark; --bg:#08121f; --card:#0f1c2f; --ink:#f2eee4; --muted:#a9b8ce; --line:#1f3049; --brand:#2bc4c4; --brand-ink:#04141c; --gold:#e0b04a; --ok:#58cc92; --off:#1b2b44; }
   * { box-sizing: border-box; }
   body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
   main { max-width:760px; margin:0 auto; padding:56px 20px 64px; }
-  h1 { font-size:2.4rem; margin:0 0 4px; letter-spacing:-0.02em; font-weight:650; }
-  h1 .w { color:var(--gold); } h1 .m { color:var(--brand); }
+  h1 { font-size:2.4rem; margin:0 0 4px; letter-spacing:.14em; font-weight:650; color:var(--gold); }
   .head { display:flex; align-items:center; gap:18px; margin-bottom:6px; }
   .head img { width:84px; height:84px; flex:none; }
-  .head .sub { margin:0 0 32px; }
   .sub { color:var(--muted); font-size:1.15rem; margin:0 0 32px; }
+  .head .sub { margin:0 0 32px; }
   .grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
   @media (max-width:640px) { .grid { grid-template-columns:1fr; } }
   .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:22px; display:flex; flex-direction:column; gap:10px; }
@@ -31,12 +30,15 @@
   .meta { color:var(--muted); font-size:.92rem; }
   a.btn { display:block; text-align:center; text-decoration:none; font-weight:650; background:var(--brand); color:var(--brand-ink); padding:13px 16px; border-radius:10px; margin-top:6px; }
   a.btn[aria-disabled="true"] { background:var(--off); color:var(--muted); pointer-events:none; cursor:default; }
-  a.btn:focus-visible { outline:3px solid var(--gold); outline-offset:2px; }
+  a.btn:focus-visible, a.help:focus-visible { outline:3px solid var(--gold); outline-offset:2px; }
   a.btn:hover:not([aria-disabled="true"]) { filter:brightness(1.08); }
+  a.help { align-self:center; color:var(--brand); font-size:.92rem; }
   .note { color:var(--muted); font-size:.88rem; min-height:1.3em; }
   ul.feat { list-style:none; padding:0; margin:32px 0 0; display:grid; grid-template-columns:1fr 1fr; gap:6px 24px; }
   @media (max-width:640px) { ul.feat { grid-template-columns:1fr; } }
   ul.feat li::before { content:"\2713\00a0"; color:var(--ok); font-weight:700; }
+  .privacy { margin:24px 0 0; padding:14px 16px; border:1px solid var(--line); border-left:3px solid var(--gold); border-radius:10px; color:var(--muted); font-size:.92rem; }
+  .privacy b { color:var(--ink); }
   footer { margin-top:40px; padding-top:18px; border-top:1px solid var(--line); color:var(--muted); font-size:.88rem; display:flex; flex-wrap:wrap; gap:6px 18px; }
   footer a { color:var(--muted); }
   #version { font-weight:600; }
@@ -50,10 +52,10 @@
 <body>
 <main>
   <div class="head">
-    <img src="assets/logo-symbol.png" alt="WhisperMedical logo" width="84" height="84">
+    <img src="assets/meletra-symbol.png" alt="MELETRA logo" width="84" height="84">
     <div>
-      <h1><span class="w">Whisper</span><span class="m">Medical</span></h1>
-      <p class="sub">Medical lecture transcription &amp; study</p>
+      <h1>MELETRA</h1>
+      <p class="sub">Medical Learning &amp; Transcription</p>
     </div>
   </div>
 
@@ -64,10 +66,11 @@
       <div class="meta">Windows 10/11 · x64</div>
       <a class="btn" id="btn-windows" href="downloads/install-windows.html" aria-disabled="true">Checking&hellip;</a>
       <div class="note" id="note-windows"></div>
+      <a class="help" href="downloads/install-windows.html">Installation instructions</a>
       <details class="cmd" id="cmd-windows" hidden>
         <summary>Or install with one command</summary>
         <div class="where">Open <b>PowerShell</b> (Start menu &rarr; type PowerShell &rarr; Enter), paste, press Enter:</div>
-<pre><code id="code-windows">$f = "$env:TEMP\whispermedical-install.ps1"; iwr -UseBasicParsing 'https://twonezerotwo-hue.github.io/whispermedical-downloads/install/install-windows.ps1' -OutFile $f; powershell -NoProfile -ExecutionPolicy Bypass -File $f</code></pre>
+<pre><code id="code-windows">$f = "$env:TEMP\meletra-install.ps1"; iwr -UseBasicParsing 'https://twonezerotwo-hue.github.io/whispermedical-downloads/install/install-windows.ps1' -OutFile $f; powershell -NoProfile -ExecutionPolicy Bypass -File $f</code></pre>
         <button type="button" data-copy="code-windows">Copy</button>
       </details>
     </section>
@@ -77,10 +80,11 @@
       <div class="meta">macOS 12+ · Intel x86_64 (2019 and similar)</div>
       <a class="btn" id="btn-mac" href="downloads/install-mac-intel.html" aria-disabled="true">Checking&hellip;</a>
       <div class="note" id="note-mac"></div>
+      <a class="help" href="downloads/install-mac-intel.html">Intel Mac information</a>
       <details class="cmd" id="cmd-mac" hidden>
         <summary>Or install with one command</summary>
         <div class="where">Open <b>Terminal</b> (Spotlight &rarr; Terminal), paste, press Enter:</div>
-<pre><code id="code-mac">curl -fsSL --proto '=https' 'https://twonezerotwo-hue.github.io/whispermedical-downloads/install/install-macos.sh' -o /tmp/whispermedical-install.sh &amp;&amp; bash /tmp/whispermedical-install.sh</code></pre>
+<pre><code id="code-mac">curl -fsSL --proto '=https' 'https://twonezerotwo-hue.github.io/whispermedical-downloads/install/install-macos.sh' -o /tmp/meletra-install.sh &amp;&amp; bash /tmp/meletra-install.sh</code></pre>
         <button type="button" data-copy="code-mac">Copy</button>
       </details>
     </section>
@@ -94,6 +98,8 @@
     <li>Study workspace: summary, flashcards, questions</li>
     <li>No account, no Python, no extra downloads after install</li>
   </ul>
+
+  <p class="privacy"><b>Your privacy.</b> Transcription runs on your computer; audio, video, PDF files and pictures never leave it. <b>Nothing is shared unless you switch it on:</b> sharing the text of completed transcripts with MELETRA is off by default and can be turned on in Settings &rarr; Privacy &amp; Data. Upgrading from WhisperMedical or Medical Lecture Transcriber keeps your lectures, transcripts, Study material and settings.</p>
 
   <footer>
     <span>Version <span id="version">&hellip;</span></span>
@@ -111,23 +117,23 @@
   var platform = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || "";
   var isWindows = /Win/i.test(platform) || /Windows/i.test(ua);
   var isMac = /Mac/i.test(platform) || /Macintosh/i.test(ua);
-  if (isWindows) document.getElementById("card-windows").classList.add("rec");
-  else if (isMac) document.getElementById("card-mac").classList.add("rec");
 
   function gb(bytes) { return (bytes / 1e9).toFixed(1) + " GB"; }
-  function apply(key, id, label, entry, extra, product) {
-    var btn = document.getElementById("btn-" + id), note = document.getElementById("note-" + id), cmd = document.getElementById("cmd-" + id);
-    var current = !product || (entry && entry.version === product);          // an older build is never offered as the current version
+  // An entry is offered only when it is announced ("ready") AND is the current product version; an older build is never offered as the current one.
+  function apply(id, label, entry, extra, product, unavailable) {
+    var card = document.getElementById("card-" + id), btn = document.getElementById("btn-" + id), note = document.getElementById("note-" + id), cmd = document.getElementById("cmd-" + id);
+    var current = !product || (entry && entry.version === product);
     if (entry && entry.status === "ready" && current && entry.bootstrapper && entry.bootstrapper.url) {
       btn.href = entry.bootstrapper.url;
-      btn.textContent = "Download for " + label;
+      btn.textContent = "Download MELETRA for " + label;
       btn.removeAttribute("aria-disabled");
       note.textContent = "Version " + entry.version + " · downloads about " + gb(entry.download_bytes || 0) + " during installation. " + extra;
       if (cmd) cmd.hidden = false;
+      if ((id === "windows" && isWindows) || (id === "mac" && isMac)) card.classList.add("rec");
     } else {
-      btn.textContent = "Not available yet";
+      btn.textContent = unavailable;
       btn.setAttribute("aria-disabled", "true");
-      note.textContent = (product ? "Version " + product + " for " + label + " is being prepared" : "This download is being prepared") + " and will appear here when it is complete and verified.";
+      note.textContent = (product ? "MELETRA " + product + " for " + label + " is being prepared" : "This download is being prepared") + " and will appear here when it is complete and verified.";
       if (cmd) cmd.hidden = true;
     }
   }
@@ -140,13 +146,13 @@
   });
   fetch("release-manifest.json", { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (m) {
     document.getElementById("version").textContent = m.product_version || m.version || "";
-    apply("windows", "windows", "Windows", m.windows, "Windows may ask you to confirm.", m.product_version);
-    apply("mac_intel", "mac", "Intel Mac", m.mac_intel, "First start: right-click the app and choose Open.", m.product_version);
+    apply("windows", "Windows", m.windows, "The installer is not code-signed yet, so Windows may ask you to confirm.", m.product_version, "Not available yet");
+    apply("mac", "Intel Mac", m.mac_intel, "First start: right-click the app and choose Open.", m.product_version, "Intel Mac — currently unavailable");
   }).catch(function () {
-    ["windows", "mac"].forEach(function (id) {
-      var b = document.getElementById("btn-" + id);
-      b.textContent = "Not available yet"; b.setAttribute("aria-disabled", "true");
-      document.getElementById("note-" + id).textContent = "Could not load the download list. Please try again later.";
+    [["windows", "Not available yet"], ["mac", "Intel Mac — currently unavailable"]].forEach(function (p) {
+      var b = document.getElementById("btn-" + p[0]);
+      b.textContent = p[1]; b.setAttribute("aria-disabled", "true");
+      document.getElementById("note-" + p[0]).textContent = "Could not load the download list. Please try again later.";
     });
   });
 })();
