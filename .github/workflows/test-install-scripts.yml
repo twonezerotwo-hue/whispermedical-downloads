@@ -171,7 +171,7 @@ jobs:
           code=$?
           echo "exit code $code"
           test "$code" -eq 3
-          test ! -d "/Applications/Medical Lecture Transcriber.app"
+          test ! -d "/Applications/WhisperMedical.app" && test ! -d "/Applications/Medical Lecture Transcriber.app"
           echo "Intel Mac $MAC_PRODUCT: not available yet (newest Mac build in the list: $MAC_VERSION) - NOT INSTALLED, as required"
       - name: Install - ONE COMMAND (the exact line of the README; MLT_ALLOW_UNANNOUNCED only lets the test install a verified but unannounced release)
         if: ${{ env.MAC_VERSION == env.MAC_PRODUCT }}
@@ -179,12 +179,12 @@ jobs:
           MLT_ALLOW_UNANNOUNCED: "1"
         run: |
           curl -fsSL --proto '=https' 'https://twonezerotwo-hue.github.io/whispermedical-downloads/install/install-macos.sh' -o /tmp/whispermedical-install.sh && bash /tmp/whispermedical-install.sh
-          test -d "/Applications/Medical Lecture Transcriber.app"
+          test -d "/Applications/WhisperMedical.app" || test -d "/Applications/Medical Lecture Transcriber.app"
           test ! -d "$HOME/Library/Caches/WhisperMedicalInstaller"
       - name: Installed app - offline start and transcription
         if: ${{ env.MAC_VERSION == env.MAC_PRODUCT }}
         run: |
-          APP="/Applications/Medical Lecture Transcriber.app"; EXE="$APP/Contents/MacOS/MedicalLectureTranscriber"
+          APP="/Applications/WhisperMedical.app"; [ -d "$APP" ] || APP="/Applications/Medical Lecture Transcriber.app"; EXE="$APP/Contents/MacOS/MedicalLectureTranscriber"
           BLOCK='(version 1)(allow default)(deny network*)(allow network* (remote unix-socket))(allow network* (remote ip "localhost:*"))'
           curl -fsSL "$JFK_URL" -o "$RUNNER_TEMP/jfk.flac"
           env -i HOME="$RUNNER_TEMP/home" PATH=/usr/bin:/bin:/usr/sbin:/sbin QT_QPA_PLATFORM=offscreen MLT_ALLOW_MULTIPLE=1 sandbox-exec -p "$BLOCK" "$EXE" --autorun "$RUNNER_TEMP/jfk.flac" --result "$RUNNER_TEMP/result.json" --timeout 1500 --language en || true
@@ -196,4 +196,4 @@ jobs:
           print(text)
           assert "ask not what your country can do for you" in text
           EOF
-          rm -rf "/Applications/Medical Lecture Transcriber.app"
+          rm -rf "/Applications/WhisperMedical.app" "/Applications/Medical Lecture Transcriber.app"

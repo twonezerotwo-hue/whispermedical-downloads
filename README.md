@@ -38,7 +38,7 @@ curl -fsSL --proto '=https' 'https://twonezerotwo-hue.github.io/whispermedical-d
 ```
 
 The script ([read it first](install/install-macos.sh)) is the same installer engine the installer app uses. It checks that this is an Intel Mac (an Apple Silicon Mac is told so and
-nothing is installed), downloads the disk image, verifies every SHA-256, copies *Medical Lecture Transcriber.app* into Applications, ejects the image and removes its temporary files.
+nothing is installed), downloads the disk image, verifies every SHA-256, copies *WhisperMedical.app* into Applications, ejects the image and removes its temporary files.
 
 ### When will the buttons and commands work?
 
@@ -67,7 +67,7 @@ The Mac app is not notarized by Apple yet: **right-click the app → Open → Op
 ## Uninstall
 
 - **Windows:** Settings → Apps → WhisperMedical (Medical Lecture Transcriber) → Uninstall. Your transcripts and downloaded models are kept.
-- **Mac:** drag *Medical Lecture Transcriber.app* from Applications to the Trash.
+- **Mac:** drag *WhisperMedical.app* (versions before 4.1: *Medical Lecture Transcriber.app*) from Applications to the Trash.
 
 ## Privacy
 

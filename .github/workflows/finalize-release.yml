@@ -288,7 +288,7 @@ jobs:
           df -h /System/Volumes/Data | tail -1
           bash "WhisperMedical Installer.app/Contents/Resources/install.sh" --dest "$RUNNER_TEMP/Applications" --no-open --progress-file "$RUNNER_TEMP/progress.txt"
           tail -3 "$RUNNER_TEMP/progress.txt"
-          APP="$RUNNER_TEMP/Applications/Medical Lecture Transcriber.app"
+          APP="$RUNNER_TEMP/Applications/WhisperMedical.app"; [ -d "$APP" ] || APP="$RUNNER_TEMP/Applications/Medical Lecture Transcriber.app"
           test -d "$APP"
           test ! -d "$HOME/Library/Caches/WhisperMedicalInstaller" || { echo "temporary files left behind"; exit 1; }
           mount | grep -q "WhisperMedical" && { echo "image still mounted"; exit 1; } || true
@@ -302,11 +302,11 @@ jobs:
           rm -rf "$RUNNER_TEMP/Applications2"; mkdir -p "$RUNNER_TEMP/Applications2"
           WM_AUTOMATED=1 WM_DEST="$RUNNER_TEMP/Applications2" WM_ERROR_FILE="$RUNNER_TEMP/applet_error.txt" "WhisperMedical Installer.app/Contents/MacOS/applet" || true
           if [ -f "$RUNNER_TEMP/applet_error.txt" ]; then echo "installer app reported: $(cat "$RUNNER_TEMP/applet_error.txt")"; exit 1; fi
-          test -d "$RUNNER_TEMP/Applications2/Medical Lecture Transcriber.app"
+          test -d "$RUNNER_TEMP/Applications2/WhisperMedical.app" || test -d "$RUNNER_TEMP/Applications2/Medical Lecture Transcriber.app"
           echo "installer app: ok"
       - name: The installed app works with the network blocked
         run: |
-          APP="$RUNNER_TEMP/Applications/Medical Lecture Transcriber.app"
+          APP="$RUNNER_TEMP/Applications/WhisperMedical.app"; [ -d "$APP" ] || APP="$RUNNER_TEMP/Applications/Medical Lecture Transcriber.app"
           EXE="$APP/Contents/MacOS/MedicalLectureTranscriber"
           export HOME_TEST="$RUNNER_TEMP/home"; mkdir -p "$HOME_TEST"
           BLOCK='(version 1)(allow default)(deny network*)(allow network* (remote unix-socket))(allow network* (remote ip "localhost:*"))'

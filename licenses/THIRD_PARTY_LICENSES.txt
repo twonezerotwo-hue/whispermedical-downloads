@@ -5,7 +5,7 @@ Windows package: version 4.0.0.   Intel Mac package: version 3.1.0 (the 4.0.0 Ma
 
 WhisperMedical runs on your computer; transcription, medical-term correction, study material, PDF reading and text recognition do not send anything to a server.
 This file lists what is inside the Windows and the Intel Mac packages and under which licences. The full licence texts of the Python packages are
-inside the installed program (Windows: next to each library; Mac: Medical Lecture Transcriber.app/Contents/Resources/licenses/).
+inside the installed program (Windows: next to each library; Mac: WhisperMedical.app/Contents/Resources/licenses/).
 
 Both platforms
   faster-whisper (MIT), CTranslate2 (MIT), ONNX Runtime (MIT), tokenizers (Apache-2.0), NumPy (BSD-3-Clause and bundled MIT / Zlib / CC0 parts),

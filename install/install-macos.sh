@@ -6,7 +6,7 @@
 #
 # It reads the public release manifest (release-manifest.json: the single source of truth), downloads the disk image of WhisperMedical (with the Whisper Large-v3 speech
 # model inside it) from the official public release location, checks every piece and the whole file against the SHA-256 values of the manifest (and, inside the app, against the
-# values compiled into it - pins.env), mounts the image, copies "Medical Lecture Transcriber.app" into Applications, ejects the image and removes its temporary files.
+# values compiled into it - pins.env), mounts the image, copies "WhisperMedical.app" (releases before 4.1: "Medical Lecture Transcriber.app") into Applications, ejects the image and removes its temporary files.
 #
 # Rules: HTTPS only; nothing is mounted or copied before the final SHA-256 matches; a broken connection resumes where it stopped (HTTP Range, retries);
 # the Gatekeeper / quarantine system of macOS is neither switched off nor changed by this installer; Intel Macs only (an Apple Silicon Mac is told so and nothing is installed).
@@ -24,7 +24,9 @@ PROGRESS=""
 OPEN_APP=1
 CURL_PROTO="--proto =https --proto-redir =https"
 CACHE="$HOME/Library/Caches/WhisperMedicalInstaller"
-APP_NAME="Medical Lecture Transcriber.app"
+APP_NAME="WhisperMedical.app"
+LEGACY_APP_NAME="Medical Lecture Transcriber.app"        # the name of 4.0 and older: an old image still holds it, an old install may still be in Applications
+BUNDLE_ID="com.medicallecturetranscriber.app"           # unchanged by the rename: it is how an old copy is recognised as this program
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -175,14 +177,21 @@ MNT="$CACHE/mount"
 mkdir -p "$MNT"
 /usr/bin/hdiutil attach "$DMG" -nobrowse -readonly -noverify -mountpoint "$MNT" -quiet >/dev/null 2>&1 || fail "The disk image could not be opened."
 cleanup() { /usr/bin/hdiutil detach "$MNT" -quiet >/dev/null 2>&1; }
-[ -d "$MNT/$APP_NAME" ] || { cleanup; fail "The disk image does not contain $APP_NAME."; }
-if /usr/bin/pgrep -f "$DEST/$APP_NAME/Contents/MacOS" >/dev/null 2>&1; then
-    /usr/bin/osascript -e 'tell application "Medical Lecture Transcriber" to quit' >/dev/null 2>&1; sleep 3
-fi
+if [ ! -d "$MNT/$APP_NAME" ] && [ -d "$MNT/$LEGACY_APP_NAME" ]; then APP_NAME="$LEGACY_APP_NAME"; fi      # prefer WhisperMedical.app, fall back to the old name
+[ -d "$MNT/$APP_NAME" ] || { cleanup; fail "The disk image does not contain WhisperMedical.app."; }
+OLD_COPY="$DEST/$LEGACY_APP_NAME"                        # a copy under the old name: replaced by the new one (only when it really is this program)
+REPLACE_OLD=0
+if [ "$APP_NAME" != "$LEGACY_APP_NAME" ] && [ -d "$OLD_COPY" ] && [ "$(/usr/bin/defaults read "$OLD_COPY/Contents/Info" CFBundleIdentifier 2>/dev/null)" = "$BUNDLE_ID" ]; then REPLACE_OLD=1; fi
+for running in "$DEST/$APP_NAME" "$OLD_COPY"; do
+    if /usr/bin/pgrep -f "$running/Contents/MacOS" >/dev/null 2>&1; then
+        /usr/bin/osascript -e "tell application \"$(basename "$running" .app)\" to quit" >/dev/null 2>&1; sleep 3
+    fi
+done
 rm -rf "$DEST/$APP_NAME.new"
 /usr/bin/ditto "$MNT/$APP_NAME" "$DEST/$APP_NAME.new" || { cleanup; rm -rf "$DEST/$APP_NAME.new"; fail "Copying the app failed (is there enough disk space?)."; }
 rm -rf "$DEST/$APP_NAME"
 mv "$DEST/$APP_NAME.new" "$DEST/$APP_NAME" || { cleanup; fail "Could not place the app in Applications."; }
+[ "$REPLACE_OLD" = "1" ] && rm -rf "$OLD_COPY"
 cleanup
 
 # ---------------------------------------------------------------------------------------------------------------- clean up

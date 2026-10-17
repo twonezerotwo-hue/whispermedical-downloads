@@ -16,7 +16,7 @@ import pytest
 pytestmark = pytest.mark.skipif(sys.platform != "darwin", reason="needs macOS (hdiutil, osascript)")
 ROOT = Path(__file__).resolve().parent.parent
 SCRIPT = ROOT / "install" / "install-macos.sh"
-APP = "Medical Lecture Transcriber.app"
+APP = "WhisperMedical.app"                              # 4.1 and newer; the script also accepts the old name "Medical Lecture Transcriber.app"
 
 
 def sha(data: bytes) -> str:
