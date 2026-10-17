@@ -82,7 +82,7 @@ def world(tmp_path_factory):
     assert done.returncode == 0, done.stdout + done.stderr
     setup_bytes = fake_exe.read_bytes()
     model = {n: os.urandom(30_000 if n != "model.bin" else 700_000) for n in MODEL_NAMES}
-    pins = {"version": "9.9.9", "setup_name": "WhisperMedical-Setup-Windows-x64.exe", "setup_sha256": sha(setup_bytes), "setup_size": len(setup_bytes),
+    pins = {"version": "9.9.9", "setup_name": "MELETRA-Setup-Windows-x64.exe", "setup_sha256": sha(setup_bytes), "setup_size": len(setup_bytes),
             "model": {n: {"sha256": sha(b)} for n, b in model.items()}}
     (base / "pins.json").write_text(json.dumps(pins), encoding="utf-8")
     exe = base / "boot_test.exe"
@@ -103,7 +103,7 @@ def make_manifest(srv, w, status="ready", version="9.9.9", setup_override=None):
                               {"name": "model.bin.part002", "size": len(data) - half, "sha256": sha(data[half:]), "url": srv.url("/m/model.bin.part002")}]
         files.append(entry)
     return {"version": version, "windows": {"status": status, "version": version, "payload": {
-        "setup": {"name": "WhisperMedical-Setup-Windows-x64.exe", "size": len(setup), "sha256": sha(setup), "url": srv.url("/setup.exe")}, "model": {"files": files}}}}
+        "setup": {"name": "MELETRA-Setup-Windows-x64.exe", "size": len(setup), "sha256": sha(setup), "url": srv.url("/setup.exe")}, "model": {"files": files}}}}
 
 
 def serve(w, **kw):

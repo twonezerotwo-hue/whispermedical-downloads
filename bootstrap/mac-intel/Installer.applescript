@@ -1,4 +1,4 @@
--- WhisperMedical Installer (Intel Mac). Compiled into "WhisperMedical Installer.app" by build.sh. It only shows a window and a progress bar;
+-- MELETRA Installer (Intel Mac). Compiled into "MELETRA Installer.app" by build.sh. It only shows a window and a progress bar;
 -- the work (download, SHA-256 checks, mounting, copying) is done by install.sh in the same app bundle. Source is public so anyone can read it.
 
 on run
@@ -18,7 +18,7 @@ on run
 
 	if not automated then
 		try
-			display dialog "WhisperMedical will download about 3 GB (the program and the Whisper Large-v3 speech model), check every file, and install it in your Applications folder." & return & return & "Nothing is installed unless the download is verified. You can stop at any time and continue later; your progress is kept." buttons {"Cancel", "Install"} default button "Install" cancel button "Cancel" with title "WhisperMedical Installer" with icon note
+			display dialog "MELETRA will download about 3 GB (the program and the Whisper Large-v3 speech model), check every file, and install it in your Applications folder." & return & return & "Nothing is installed unless the download is verified. You can stop at any time and continue later; your progress is kept." buttons {"Cancel", "Install"} default button "Install" cancel button "Cancel" with title "MELETRA Installer" with icon note
 		on error number -128
 			return
 		end try
@@ -29,7 +29,7 @@ on run
 
 	set progress total steps to 1000
 	set progress completed steps to 0
-	set progress description to "Installing WhisperMedical"
+	set progress description to "Installing MELETRA"
 	set progress additional description to "Starting ..."
 
 	set finished to false
@@ -65,7 +65,7 @@ on run
 		end repeat
 	on error number -128
 		do shell script "pkill -P " & pidText & " 2>/dev/null; kill " & pidText & " 2>/dev/null; rm -rf " & quoted form of workFolder & "; true"
-		display dialog "Stopped. Your download progress is kept: open WhisperMedical Installer again to continue." buttons {"OK"} default button "OK" with title "WhisperMedical Installer" with icon note
+		display dialog "Stopped. Your download progress is kept: open MELETRA Installer again to continue." buttons {"OK"} default button "OK" with title "MELETRA Installer" with icon note
 		return
 	end try
 
@@ -76,8 +76,8 @@ on run
 			if errorFile is not "" then do shell script "printf %s " & quoted form of errorText & " > " & quoted form of errorFile
 			error number -128
 		end if
-		display dialog errorText buttons {"Close"} default button "Close" with title "WhisperMedical Installer" with icon stop
+		display dialog errorText buttons {"Close"} default button "Close" with title "MELETRA Installer" with icon stop
 	else if not automated then
-		display dialog "WhisperMedical is installed in your Applications folder and is starting." & return & return & "Whisper Large-v3 is already inside - nothing more will be downloaded." buttons {"Done"} default button "Done" with title "WhisperMedical Installer" with icon note
+		display dialog "MELETRA is installed in your Applications folder and is starting." & return & return & "Whisper Large-v3 is already inside - nothing more will be downloaded." buttons {"Done"} default button "Done" with title "MELETRA Installer" with icon note
 	end if
 end run

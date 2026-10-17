@@ -1,4 +1,4 @@
-// WhisperMedical-Installer-Windows.exe - the small program a Windows user downloads and double-clicks.
+// MELETRA-Installer-Windows.exe - the small program a Windows user downloads and double-clicks.
 //
 // It downloads the real installer and the speech model (Whisper Large-v3) from the official public release location, checks every SHA-256,
 // puts the model where the program finds it, starts the real installer (Windows asks for administrator approval - nothing is bypassed) and starts the program.
@@ -23,7 +23,7 @@ using System.Web.Script.Serialization;
 using System.Windows.Forms;
 using Microsoft.Win32;
 
-namespace WhisperMedical
+namespace MELETRA
 {
     // ------------------------------------------------------------------------------------------------------------------ plumbing
     interface IReporter
@@ -69,7 +69,7 @@ namespace WhisperMedical
                 if (!HostAllowed(uri)) throw new InstallerException("The download address is not an official one: " + uri.Host, false);
                 HttpWebRequest req = (HttpWebRequest)WebRequest.Create(uri);
                 req.AllowAutoRedirect = false;
-                req.UserAgent = "WhisperMedical-Installer/" + Pins.Version;
+                req.UserAgent = "MELETRA-Installer/" + Pins.Version;
                 req.Timeout = timeoutMs;
                 req.ReadWriteTimeout = timeoutMs;
                 req.KeepAlive = false;
@@ -179,7 +179,7 @@ namespace WhisperMedical
             foreach (object o in (System.Collections.IEnumerable)Obj(payload, "model")["files"]) model.Add(ReadAsset((Dictionary<string, object>)o));
             // what the manifest says must be what this installer was built for
             if (Str(w, "version") != Pins.Version || setup.Sha256 != Pins.SetupSha256 || setup.Size != Pins.SetupSize)
-                throw new InstallerException("This installer is out of date. Please download the newest WhisperMedical installer from the download page.", false);
+                throw new InstallerException("This installer is out of date. Please download the newest MELETRA installer from the download page.", false);
             foreach (Asset f in model)
             {
                 string pinned = Pins.ModelSha(f.Name);
@@ -210,7 +210,7 @@ namespace WhisperMedical
 
             // 3. download and check everything
             string setupPath = Path.Combine(cacheDir, Pins.SetupName);
-            ui.Step("Downloading WhisperMedical ...");
+            ui.Step("Downloading MELETRA ...");
             if (!(File.Exists(setupPath) && new FileInfo(setupPath).Length == setup.Size && Net.Sha256File(setupPath, null) == Pins.SetupSha256))
                 Fetch(setup, setupPath, Pins.SetupSha256);
             else Add(setup.Size);
@@ -226,18 +226,19 @@ namespace WhisperMedical
             Check();
 
             // 4. the real installer, only after its checksum is verified (Fetch verified it)
-            ui.Step("Installing WhisperMedical (Windows may ask for your permission) ...");
+            ui.Step("Installing MELETRA (Windows may ask for your permission) ...");
             string exeDir = RunSetup(setupPath);
 
             // 5. clean up and start
             ui.Step("Finishing ...");
             try { Directory.Delete(cacheDir, true); } catch (Exception) { }
+            try { string old = Path.Combine(Path.GetDirectoryName(cacheDir), "..", "WhisperMedicalInstaller", "cache"); if (Directory.Exists(old)) Directory.Delete(old, true); } catch (Exception) { }          // leftovers of the earlier installer
             if (launch && exeDir != null)
             {
-                string exe = Path.Combine(exeDir, "MedicalLectureTranscriber.exe");
+                string exe = Path.Combine(exeDir, "MELETRA.exe");
                 if (File.Exists(exe)) Process.Start(new ProcessStartInfo(exe) { UseShellExecute = true, WorkingDirectory = exeDir });
             }
-            ui.Step("WhisperMedical is installed.");
+            ui.Step("MELETRA is installed.");
         }
 
         string RunSetup(string setupPath)
@@ -262,7 +263,7 @@ namespace WhisperMedical
                     using (RegistryKey b = RegistryKey.OpenBaseKey(hive, RegistryView.Registry64))
                     using (RegistryKey key = b.OpenSubKey(k))
                         if (key != null && key.GetValue("InstallLocation") != null) return key.GetValue("InstallLocation").ToString().TrimEnd('\\');
-            string fallback = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Medical Lecture Transcriber");
+            string fallback = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "MELETRA");
             return Directory.Exists(fallback) ? fallback : null;
         }
 
@@ -386,10 +387,10 @@ namespace WhisperMedical
         }
     }
 
-    // From 4.1.0 on, completed transcripts are shared with the developer by default (Settings -> Privacy & Data): the installer says so BEFORE anything is downloaded.
+    // From 4.1.0 on the program can share completed transcript text with MELETRA, but ONLY if the student switches it on (Settings -> Privacy & Data): the installer says so BEFORE anything is downloaded.
     static class Notice
     {
-        public const string Text = "Completed transcripts are shared with the developer by default to improve transcription quality. You can turn this off in Settings -> Privacy & Data.";
+        public const string Text = "Nothing is shared unless you switch it on. Sharing completed transcript text with MELETRA to improve transcription quality is OFF by default; you can turn it on in Settings -> Privacy & Data.";
         public const string Detail = "Your audio, video, PDF files and pictures are never sent.";
         public static bool Applies()
         {
@@ -399,7 +400,7 @@ namespace WhisperMedical
 
     class InstallerForm : Form, IReporter
     {
-        Label title, step, detail, notice;
+        Label title, tagline, step, detail, notice;
         ProgressBar bar;
         Button main, cancel;
         Engine engine;
@@ -412,20 +413,31 @@ namespace WhisperMedical
         public InstallerForm(Func<Engine> factory, bool unattended)
         {
             this.factory = factory; this.unattended = unattended;
-            Text = "WhisperMedical Installer";
+            Text = "MELETRA Installer";
             bool notices = Notice.Applies();
-            ClientSize = new Size(540, notices ? 312 : 230);
+            ClientSize = new Size(540, notices ? 348 : 262);
             FormBorderStyle = FormBorderStyle.FixedDialog; MaximizeBox = false; StartPosition = FormStartPosition.CenterScreen;
             Font = new Font("Segoe UI", 9.5f);
-            title = new Label { Text = "WhisperMedical", Font = new Font("Segoe UI", 16f, FontStyle.Bold), Left = 20, Top = 16, Width = 500, Height = 34 };
-            step = new Label { Text = "WhisperMedical will download about 3.6 GB (the program and the Whisper Large-v3 speech model), check them and install. Nothing more is downloaded later.", Left = 22, Top = 58, Width = 496, Height = 56 };
-            bar = new ProgressBar { Left = 22, Top = 122, Width = 496, Height = 22, Maximum = 1000, Visible = false };
-            detail = new Label { Text = "", Left = 22, Top = 150, Width = 496, Height = 22, ForeColor = Color.DimGray };
-            int buttons = notices ? 266 : 184;
-            notice = new Label { Text = Notice.Text + "\r\n" + Notice.Detail, Left = 22, Top = 178, Width = 496, Height = 76, Visible = notices };
+            try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch (Exception) { }
+            PictureBox symbol = null;
+            try
+            {
+                using (Stream rs = System.Reflection.Assembly.GetExecutingAssembly().GetManifestResourceStream("meletra-symbol.png"))
+                    if (rs != null) symbol = new PictureBox { Image = Image.FromStream(rs), SizeMode = PictureBoxSizeMode.Zoom, Left = 22, Top = 14, Width = 52, Height = 52, AccessibleName = "MELETRA logo" };
+            }
+            catch (Exception) { }
+            int textLeft = symbol != null ? 84 : 22;
+            title = new Label { Text = "MELETRA", Font = new Font("Segoe UI", 16f, FontStyle.Bold), Left = textLeft, Top = 12, Width = 440, Height = 32 };
+            tagline = new Label { Text = "Medical Learning & Transcription", ForeColor = Color.DimGray, Left = textLeft, Top = 44, Width = 440, Height = 22 };
+            step = new Label { Text = "MELETRA will download about 3.6 GB (the program and the Whisper Large-v3 speech model), check them and install. Nothing more is downloaded later.", Left = 22, Top = 82, Width = 496, Height = 56 };
+            bar = new ProgressBar { Left = 22, Top = 146, Width = 496, Height = 22, Maximum = 1000, Visible = false };
+            detail = new Label { Text = "", Left = 22, Top = 174, Width = 496, Height = 22, ForeColor = Color.DimGray };
+            int buttons = notices ? 302 : 216;
+            notice = new Label { Text = Notice.Text + "\r\n" + Notice.Detail, Left = 22, Top = 204, Width = 496, Height = 88, Visible = notices };
             main = new Button { Text = "Install", Left = 330, Top = buttons, Width = 90, Height = 30 };
             cancel = new Button { Text = "Cancel", Left = 428, Top = buttons, Width = 90, Height = 30 };
-            Controls.AddRange(new Control[] { title, step, bar, detail, notice, main, cancel });
+            Controls.AddRange(new Control[] { title, tagline, step, bar, detail, notice, main, cancel });
+            if (symbol != null) Controls.Add(symbol);
             main.Click += delegate { Start(); };
             cancel.Click += delegate { if (engine != null && worker != null && worker.IsAlive) { engine.Cancel(); cancel.Enabled = false; } else Close(); };
             Shown += delegate { if (unattended) Start(); };
@@ -451,7 +463,7 @@ namespace WhisperMedical
         }
 
         void Ui(MethodInvoker a) { if (IsHandleCreated && !IsDisposed) try { BeginInvoke(a); } catch (Exception) { } }
-        void Done() { bar.Value = 1000; step.Text = "WhisperMedical is installed and starting. You can close this window."; detail.Text = ""; main.Visible = false; cancel.Text = "Close"; cancel.Enabled = true; if (unattended) Close(); }
+        void Done() { bar.Value = 1000; step.Text = "MELETRA is installed and starting. You can close this window."; detail.Text = ""; main.Visible = false; cancel.Text = "Close"; cancel.Enabled = true; if (unattended) Close(); }
         void Failed(string msg, bool retry)
         {
             step.Text = msg; detail.Text = ""; cancel.Text = "Close"; cancel.Enabled = true; main.Text = "Try again"; main.Enabled = retry;
@@ -486,7 +498,7 @@ namespace WhisperMedical
             bool console = Array.IndexOf(args, "--console") >= 0, unattended = console || Array.IndexOf(args, "--unattended") >= 0;
             bool launch = Array.IndexOf(args, "--no-launch") < 0;
             string local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            string cache = Path.Combine(local, "WhisperMedicalInstaller", "cache");
+            string cache = Path.Combine(local, "MELETRAInstaller", "cache");
             string model = Path.Combine(local, "MedicalLectureTranscriber", "models", "whisper-large-v3");
             string setupArgs = "/SILENT /SUPPRESSMSGBOXES /NORESTART";
             string manifest = Pins.ManifestUrl;

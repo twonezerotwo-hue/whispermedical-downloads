@@ -16,7 +16,7 @@ import pytest
 pytestmark = pytest.mark.skipif(sys.platform != "darwin", reason="needs macOS (hdiutil, osascript)")
 ROOT = Path(__file__).resolve().parent.parent
 SCRIPT = ROOT / "install" / "install-macos.sh"
-APP = "WhisperMedical.app"                              # 4.1 and newer; the script also accepts the old name "Medical Lecture Transcriber.app"
+APP = "MELETRA.app"                              # 4.1 and newer; the script also accepts the old name "Medical Lecture Transcriber.app"
 
 
 def sha(data: bytes) -> str:
@@ -85,11 +85,11 @@ def image(tmp_path_factory):
 def make(srv, image, status="ready", version="9.9.9", tamper=False, product=None, verified=False):
     parts = []
     for i, p in enumerate(image["parts"], 1):
-        name = f"WhisperMedical-Intel-Mac-Offline.dmg.part{i:03d}"
+        name = f"MELETRA-Intel-Mac-Offline.dmg.part{i:03d}"
         served = p[:-1] + bytes([p[-1] ^ 0xFF]) if (tamper and i == 2) else p
         srv.files["/" + name] = served
         parts.append({"name": name, "size": len(p), "sha256": sha(p), "url": srv.url("/" + name)})
-    manifest = {"mac_intel": {"status": status, "version": version, "payload": {"dmg": {"name": "WhisperMedical-Intel-Mac-Offline.dmg", "size": len(image["data"]),
+    manifest = {"mac_intel": {"status": status, "version": version, "payload": {"dmg": {"name": "MELETRA-Intel-Mac-Offline.dmg", "size": len(image["data"]),
                                                                                         "sha256": image["sha"], "parts": parts}}}}
     if product:
         manifest["product_version"] = product
@@ -135,7 +135,7 @@ def test_a_complete_release_that_is_still_being_verified_can_be_installed_by_the
 def test_cut_connections_resume_inside_the_file(image, tmp_path):
     srv = Server({})
     make(srv, image)
-    srv.cut = {"/WhisperMedical-Intel-Mac-Offline.dmg.part001": 2, "/WhisperMedical-Intel-Mac-Offline.dmg.part002": 1}
+    srv.cut = {"/MELETRA-Intel-Mac-Offline.dmg.part001": 2, "/MELETRA-Intel-Mac-Offline.dmg.part002": 1}
     try:
         done, dest, _ = run(srv, image, tmp_path)
     finally:
@@ -168,7 +168,7 @@ def test_a_manifest_that_is_not_ready_or_not_for_this_installer_stops_before_any
 
 
 def test_the_installer_app_shows_progress_runs_the_script_and_installs(image, tmp_path):
-    """The compiled "WhisperMedical Installer.app" itself (AppleScript window code), driven in its automated mode against the local fake server."""
+    """The compiled "MELETRA Installer.app" itself (AppleScript window code), driven in its automated mode against the local fake server."""
     srv = Server({})
     make(srv, image)
     pins = tmp_path / "pins.json"
@@ -181,7 +181,7 @@ def test_the_installer_app_shows_progress_runs_the_script_and_installs(image, tm
         dest.mkdir()
         env = dict(os.environ, WM_AUTOMATED="1", WM_DEST=str(dest), WM_ERROR_FILE=str(tmp_path / "error.txt"),
                    WM_ENV=f"MLT_TEST=1 MLT_MANIFEST_URL={srv.url('/manifest.json')} MLT_CACHE={tmp_path / 'cache'}")
-        done = subprocess.run([str(out / "WhisperMedical Installer.app" / "Contents" / "MacOS" / "applet")], capture_output=True, text=True, env=env, timeout=240)
+        done = subprocess.run([str(out / "MELETRA Installer.app" / "Contents" / "MacOS" / "applet")], capture_output=True, text=True, env=env, timeout=240)
     finally:
         srv.close()
     assert not (tmp_path / "error.txt").exists(), (tmp_path / "error.txt").read_text()
@@ -203,7 +203,7 @@ def test_the_installer_app_reports_a_refusal_in_plain_words_and_installs_nothing
         dest.mkdir()
         env = dict(os.environ, WM_AUTOMATED="1", WM_DEST=str(dest), WM_ERROR_FILE=str(tmp_path / "error.txt"),
                    WM_ENV=f"MLT_TEST=1 MLT_MANIFEST_URL={srv.url('/manifest.json')} MLT_CACHE={tmp_path / 'cache'}")
-        subprocess.run([str(out / "WhisperMedical Installer.app" / "Contents" / "MacOS" / "applet")], capture_output=True, text=True, env=env, timeout=240)
+        subprocess.run([str(out / "MELETRA Installer.app" / "Contents" / "MacOS" / "applet")], capture_output=True, text=True, env=env, timeout=240)
     finally:
         srv.close()
     assert "not available yet" in (tmp_path / "error.txt").read_text()
@@ -267,5 +267,5 @@ def test_the_test_switch_installs_a_verified_but_unannounced_release_and_says_so
 
 def test_one_engine_serves_the_app_the_command_and_the_double_click_file():
     build = (ROOT / "bootstrap" / "mac-intel" / "build.sh").read_text(encoding="utf-8")
-    assert 'install/install-macos.sh" "$APP/Contents/Resources/install.sh"' in build and "Install WhisperMedical.command" in build
+    assert 'install/install-macos.sh" "$APP/Contents/Resources/install.sh"' in build and "Install MELETRA.command" in build
     assert not (ROOT / "bootstrap" / "mac-intel" / "install.sh").exists()

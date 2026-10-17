@@ -22,11 +22,11 @@ import sitetool  # noqa: E402
 
 PS1 = ROOT / "install" / "install-windows.ps1"
 SH = ROOT / "install" / "install-macos.sh"
-COMMAND = ROOT / "install" / "Install WhisperMedical.command"
+COMMAND = ROOT / "install" / "Install MELETRA.command"
 BASE = "https://twonezerotwo-hue.github.io/whispermedical-downloads"
-WINDOWS_COMMAND = ("$f = \"$env:TEMP\\whispermedical-install.ps1\"; iwr -UseBasicParsing '" + BASE + "/install/install-windows.ps1' -OutFile $f; "
+WINDOWS_COMMAND = ("$f = \"$env:TEMP\\meletra-install.ps1\"; iwr -UseBasicParsing '" + BASE + "/install/install-windows.ps1' -OutFile $f; "
                    "powershell -NoProfile -ExecutionPolicy Bypass -File $f")
-MAC_COMMAND = "curl -fsSL --proto '=https' '" + BASE + "/install/install-macos.sh' -o /tmp/whispermedical-install.sh && bash /tmp/whispermedical-install.sh"
+MAC_COMMAND = "curl -fsSL --proto '=https' '" + BASE + "/install/install-macos.sh' -o /tmp/meletra-install.sh && bash /tmp/meletra-install.sh"
 windows_only = pytest.mark.skipif(sys.platform != "win32", reason="runs Windows PowerShell")
 
 
@@ -69,7 +69,7 @@ def test_the_double_click_file_holds_no_installation_logic_of_its_own():
     assert os.name == "nt" or os.access(COMMAND, os.X_OK)
     index = subprocess.run(["git", "ls-files", "-s", "install"], cwd=ROOT, capture_output=True, text=True).stdout
     if index:
-        assert re.search(r"^100755 \S+ 0\tinstall/Install WhisperMedical\.command$", index, re.M) and re.search(r"^100755 \S+ 0\tinstall/install-macos\.sh$", index, re.M)
+        assert re.search(r"^100755 \S+ 0\tinstall/Install MELETRA\.command$", index, re.M) and re.search(r"^100755 \S+ 0\tinstall/install-macos\.sh$", index, re.M)
 
 
 def test_the_mac_scripts_are_valid_bash():
@@ -127,9 +127,9 @@ def fake_installer(tmp_path_factory):
         pytest.skip("no C# compiler")
     folder = tmp_path_factory.mktemp("fake")
     (folder / "p.cs").write_text(FAKE_EXE, encoding="utf-8")
-    done = subprocess.run([str(csc), "/nologo", "/out:" + str(folder / "WhisperMedical-Installer-Windows.exe"), str(folder / "p.cs")], capture_output=True, text=True)
+    done = subprocess.run([str(csc), "/nologo", "/out:" + str(folder / "MELETRA-Installer-Windows.exe"), str(folder / "p.cs")], capture_output=True, text=True)
     assert done.returncode == 0, done.stdout
-    return (folder / "WhisperMedical-Installer-Windows.exe").read_bytes()
+    return (folder / "MELETRA-Installer-Windows.exe").read_bytes()
 
 
 class Server:
@@ -166,7 +166,7 @@ class Server:
 
 def serve(exe: bytes, tmp_path, status="ready", product="9.9.9", version="9.9.9", verified=True, served=None):
     srv = Server({})
-    name = "WhisperMedical-Installer-Windows.exe"
+    name = "MELETRA-Installer-Windows.exe"
     srv.files["/" + name] = served if served is not None else exe
     entry = {"status": status, "version": version, "download_bytes": 4_000_000_000,
              "bootstrapper": {"name": name, "url": srv.url("/" + name), "size": len(exe), "sha256": hashlib.sha256(exe).hexdigest()}}
@@ -181,7 +181,7 @@ def run_script(srv, tmp_path, *extra, env_extra=None, manifest="/m.json"):
     temp, log = tmp_path / "temp", tmp_path / "log"
     temp.mkdir(exist_ok=True)
     log.mkdir(exist_ok=True)
-    env = dict(os.environ, TEMP=str(temp), TMP=str(temp), FAKE_LOG=str(log), WHISPERMEDICAL_TEST="1")
+    env = dict(os.environ, TEMP=str(temp), TMP=str(temp), FAKE_LOG=str(log), MELETRA_TEST="1")
     env.update(env_extra or {})
     done = subprocess.run(["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(PS1), "-ManifestUrl", srv.url(manifest), *extra],
                           capture_output=True, text=True, env=env, timeout=180)
@@ -201,14 +201,14 @@ def test_it_downloads_checks_runs_the_installer_in_text_mode_and_cleans_up(fake_
     srv = serve(fake_installer, tmp_path)
     try:
         done, args, temp = run_script(srv, tmp_path)
-        done2, args2, _ = run_script(srv, tmp_path, env_extra={"WHISPERMEDICAL_NO_LAUNCH": "1"})
+        done2, args2, _ = run_script(srv, tmp_path, env_extra={"MELETRA_NO_LAUNCH": "1"})
         done3, args3, _ = run_script(srv, tmp_path, "-Gui", "-NoLaunch")
     finally:
         srv.close()
     assert done.returncode == 0 and args == "--console", done.stdout + done.stderr
-    assert "matches its published SHA-256" in done.stdout and "WhisperMedical 9.9.9 for Windows" in done.stdout and "is installed" in done.stdout
+    assert "matches its published SHA-256" in done.stdout and "MELETRA 9.9.9 for Windows" in done.stdout and "is installed" in done.stdout
     assert args2 == "--console|--no-launch" and args3 == "--unattended|--no-launch"
-    assert not (temp / "WhisperMedicalInstall").exists()                                      # the downloaded installer program is removed
+    assert not (temp / "MELETRAInstall").exists()                                      # the downloaded installer program is removed
 
 
 @windows_only
@@ -229,7 +229,7 @@ def test_a_download_that_does_not_match_the_manifest_is_deleted_and_never_run(fa
     finally:
         srv.close()
     assert done.returncode == 4 and args is None and "NOT run" in done.stdout + done.stderr
-    assert not (temp / "WhisperMedicalInstall" / "WhisperMedical-Installer-Windows.exe").exists()
+    assert not (temp / "MELETRAInstall" / "MELETRA-Installer-Windows.exe").exists()
 
 
 @windows_only
@@ -242,7 +242,7 @@ def test_a_download_that_does_not_match_the_manifest_is_deleted_and_never_run(fa
 def test_only_an_announced_current_release_is_installed(fake_installer, tmp_path, kw, allow, code, text):
     srv = serve(fake_installer, tmp_path, **kw)
     try:
-        done, args, _ = run_script(srv, tmp_path, env_extra={"WHISPERMEDICAL_ALLOW_UNANNOUNCED": "1"} if allow else None)
+        done, args, _ = run_script(srv, tmp_path, env_extra={"MELETRA_ALLOW_UNANNOUNCED": "1"} if allow else None)
     finally:
         srv.close()
     assert done.returncode == code and text in (done.stdout + done.stderr).lower() and args is None
@@ -263,19 +263,19 @@ def test_the_test_switch_installs_a_verified_but_unannounced_release(fake_instal
 def test_an_address_that_is_not_official_is_refused_without_a_request(fake_installer, tmp_path):
     srv = serve(fake_installer, tmp_path)
     try:
-        done, args, _ = run_script(srv, tmp_path, env_extra={"WHISPERMEDICAL_TEST": "0"})                # outside the test mode http://127.0.0.1 is not an official address
+        done, args, _ = run_script(srv, tmp_path, env_extra={"MELETRA_TEST": "0"})                # outside the test mode http://127.0.0.1 is not an official address
     finally:
         srv.close()
     assert done.returncode == 4 and "secure official address" in done.stdout + done.stderr and not srv.hits
 
 
 # --------------------------------------------------------------------------------------------------------- 4.1.0: the sharing notice before anything is installed
-NOTICE = "Completed transcripts are shared with the developer by default to improve transcription quality. You can turn this off in Settings -> Privacy & Data."
+NOTICE = "Nothing is shared unless you switch it on. Sharing completed transcript text with MELETRA to improve transcription quality is OFF by default; you can turn it on in Settings -> Privacy & Data."
 
 
 @windows_only
 @pytest.mark.parametrize("version, shown", [("4.0.0", False), ("3.1.0", False), ("4.1.0", True), ("9.9.9", True)])
-def test_the_one_command_installer_states_the_sharing_default_from_4_1_0_on(fake_installer, tmp_path, version, shown):
+def test_the_one_command_installer_states_that_sharing_is_off_by_default_from_4_1_0_on(fake_installer, tmp_path, version, shown):
     srv = serve(fake_installer, tmp_path, product=version, version=version)
     try:
         done, args, _ = run_script(srv, tmp_path)
@@ -286,17 +286,19 @@ def test_the_one_command_installer_states_the_sharing_default_from_4_1_0_on(fake
 
 
 def test_the_mac_engine_and_the_bootstrapper_carry_the_same_notice():
-    assert NOTICE in read(SH) or "Completed transcripts are shared with the developer by default to improve transcription quality" in read(SH)
-    cs = read(ROOT / "bootstrap" / "windows" / "WhisperMedicalInstaller.cs")
+    assert NOTICE in read(SH) and NOTICE in read(ROOT / "install" / "install-windows.ps1")
+    cs = read(ROOT / "bootstrap" / "windows" / "MELETRAInstaller.cs")
     assert NOTICE in cs and "new Version(4, 1, 0)" in cs and "[notice] " in cs
 
 
 def test_the_download_page_is_branded_and_the_privacy_text_is_true_for_every_version():
-    for name in ("favicon.ico", "favicon-32.png", "favicon-192.png", "apple-touch-icon.png", "logo.png", "logo-symbol.png"):
+    for name in ("favicon.ico", "favicon-32.png", "favicon-192.png", "apple-touch-icon.png", "meletra-logo.png", "meletra-symbol.png", "meletra.ico", "meletra-icon-64.png"):
         assert (ROOT / "assets" / name).stat().st_size > 400, name
     page, readme = read(ROOT / "index.html"), read(ROOT / "README.md")
-    assert 'rel="icon" href="assets/favicon.ico"' in page and 'src="assets/logo-symbol.png"' in page and re.search(r"<h1>(?:<[^>]+>)*Whisper(?:<[^>]+>)*Medical(?:<[^>]+>)*</h1>", page) is not None
-    assert "Version 4.1.0 and newer" in readme and "shared with the developer by default" in readme and "Settings → Privacy & Data" in readme
+    assert 'rel="icon" href="assets/favicon.ico"' in page and 'src="assets/meletra-symbol.png"' in page and re.search(r"<h1>(?:<[^>]+>)*MELETRA(?:<[^>]+>)*</h1>", page) is not None
+    assert "Medical Learning &amp; Transcription" in page and "Download MELETRA for" in page and "Installation instructions" in page
+    assert "Nothing is shared unless you switch it on" in readme and "off by default" in readme and "Settings → Privacy & Data" in readme
+    assert "shared with the developer by default" not in readme and "shared with the developer by default" not in page
     assert "stay on your computer. The installer" not in readme                                   # the old unqualified claim is gone
     for text in (page, readme):
         assert "MedLecture" not in text and "MEDLECTURE" not in text
