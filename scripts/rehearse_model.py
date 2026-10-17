@@ -21,7 +21,7 @@ layout = json.loads((ROOT / "scripts" / "model_parts.json").read_text(encoding="
 subprocess.run([str(CSC), "/nologo", "/target:exe", f"/out:{work / 'setup.exe'}", str(work / "fake.cs")], check=True)
 setup = (work / "setup.exe").read_bytes()
 sha = hashlib.sha256(setup).hexdigest()
-pins = {"version": "9.9.9", "setup_name": "WhisperMedical-Setup-Windows-x64.exe", "setup_sha256": sha, "setup_size": len(setup),
+pins = {"version": "9.9.9", "setup_name": "MELETRA-Setup-Windows-x64.exe", "setup_sha256": sha, "setup_size": len(setup),
         "model": {f["name"]: {"sha256": f["sha256"]} for f in layout["files"]}}
 (work / "pins.json").write_text(json.dumps(pins), encoding="utf-8")
 subprocess.run([sys.executable, str(ROOT / "bootstrap" / "windows" / "build.py"), "--test", "--pins", str(work / "pins.json"), "--out", str(work / "boot_test.exe")], check=True)
@@ -32,7 +32,7 @@ srv = ThreadingHTTPServer(("127.0.0.1", 0), handler)
 threading.Thread(target=srv.serve_forever, daemon=True).start()
 base = f"http://127.0.0.1:{srv.server_port}"
 manifest = {"version": "9.9.9", "windows": {"status": "uploaded", "version": "9.9.9", "payload": {
-    "setup": {"name": "WhisperMedical-Setup-Windows-x64.exe", "size": len(setup), "sha256": sha, "url": base + "/setup.exe"},
+    "setup": {"name": "MELETRA-Setup-Windows-x64.exe", "size": len(setup), "sha256": sha, "url": base + "/setup.exe"},
     "model": {"files": layout["files"]}}}}
 (work / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
 

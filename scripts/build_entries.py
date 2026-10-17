@@ -1,7 +1,7 @@
 """Build the manifest entry of a platform from the pinned facts (pins/*.json), the model layout and the bootstrapper that was just built.
 
-    python scripts/build_entries.py windows  PATH_TO_WhisperMedical-Installer-Windows.exe    -> prints the entry as JSON
-    python scripts/build_entries.py mac-intel PATH_TO_WhisperMedical-Installer-IntelMac.zip
+    python scripts/build_entries.py windows  PATH_TO_MELETRA-Installer-Windows.exe    -> prints the entry as JSON
+    python scripts/build_entries.py mac-intel PATH_TO_MELETRA-Installer-IntelMac.zip
 
 The entry describes exactly the files of the public release of that platform; the installers read it, compare it with the values compiled into them, and
 download from the URLs in it (only from github.com / githubusercontent.com hosts). The status is always "uploaded": only the verification step may make it "ready".

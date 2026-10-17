@@ -26,12 +26,12 @@ jobs:
       - name: Build the installer app and its zip
         run: |
           bash bootstrap/mac-intel/build.sh pins/mac-intel.json out
-          unzip -l out/WhisperMedical-Installer-IntelMac.zip | head -20
-          unzip -l out/WhisperMedical-Installer-IntelMac.zip | grep -q "Install WhisperMedical.command"
-          cmp install/install-macos.sh "out/WhisperMedical Installer.app/Contents/Resources/install.sh"      # one engine for the app, the .command and the one-command install
-          cat "out/WhisperMedical Installer.app/Contents/Resources/pins.env"
-          /usr/bin/codesign -dv "out/WhisperMedical Installer.app" 2>&1 | head -5
-          plutil -lint "out/WhisperMedical Installer.app/Contents/Info.plist"
+          unzip -l out/MELETRA-Installer-IntelMac.zip | head -20
+          unzip -l out/MELETRA-Installer-IntelMac.zip | grep -q "Install MELETRA.command"
+          cmp install/install-macos.sh "out/MELETRA Installer.app/Contents/Resources/install.sh"      # one engine for the app, the .command and the one-command install
+          cat "out/MELETRA Installer.app/Contents/Resources/pins.env"
+          /usr/bin/codesign -dv "out/MELETRA Installer.app" 2>&1 | head -5
+          plutil -lint "out/MELETRA Installer.app/Contents/Info.plist"
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -42,5 +42,5 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: mac-installer-test-build
-          path: out/WhisperMedical-Installer-IntelMac.zip
+          path: out/MELETRA-Installer-IntelMac.zip
           retention-days: 3

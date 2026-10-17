@@ -1,13 +1,14 @@
 name: finalize-release
 
-# Run after the big files of a platform have been uploaded (as a DRAFT release) by the release automation. For one platform it
-#   1. builds the small installer program and tests it,
-#   2. adds it to the draft release, checks that every file the manifest will list is there, and publishes the release,
-#   3. writes the platform's entry into release-manifest.json (status "uploaded" - complete, not yet announced),
-#   4. downloads the installer exactly as a visitor would (no token, no login) and runs the REAL installer on a clean machine: downloads, checks, installs,
-#      starts the program with the network blocked, transcribes a short public-domain clip,
-#   5. only then marks the platform "ready" - which is what enables the button on the download page.
-# Step 5 additionally needs the repository variable LEGAL_ACKNOWLEDGED=yes (the owner's confirmation of the open-source notices).
+# Run after the big files of a platform have been uploaded (as a DRAFT release) by the release automation (assemble-release). For Windows the order is
+#   1. build the small installer program with the pinned checksums and test it,
+#   2. STAGE: the draft becomes a pre-release (public files, not linked from the page or the manifest, not "latest"),
+#   3. download the exact public bytes like a visitor (no token, no login), check size and SHA-256, and run the real installation on clean machines:
+#      a fresh install and an upgrade over WhisperMedical 4.0.0 (the user's data must stay), start with the network blocked, transcribe a short public-domain clip,
+#   4. PROMOTE: one commit to main puts the release into release-manifest.json (status "uploaded"); this is the last step before the shipped installer program is tested,
+#   5. run the SHIPPED installer program from the public manifest for real; if that fails the previous manifest is restored (windows-rollback),
+#   6. record the verification; only then, and only with LEGAL_ACKNOWLEDGED=yes, mark the platform "ready" - which is what enables the button on the download page.
+# Intel Mac keeps the earlier order (its build can only be produced and tested on a real Intel Mac).
 on:
   workflow_dispatch:
     inputs:
@@ -29,6 +30,14 @@ env:
 
 jobs:
   # ================================================================================================================== Windows
+  # The order for Windows (nothing the public manifest or the download page shows changes before step 4):
+  #   1 windows-build         the small installer program is built with the pinned checksums and tested
+  #   2 windows-stage         the STAGING release windows-vX.Y.Z: the draft becomes a pre-release (public files, not linked anywhere, not "latest")
+  #   3 windows-verify-clean  / windows-verify-upgrade   the exact public bytes are downloaded like a visitor (no token), hash-checked, installed on a clean machine
+  #                           and over an installed WhisperMedical 4.0.0, started with the network blocked, a short clip is transcribed
+  #   4 windows-promote       ONE commit to main: release-manifest.json (+ the redirect pages) now list this release (status "uploaded")  <- the last step
+  #   5 windows-verify        the SHIPPED installer program is downloaded from the public manifest and run for real; if it fails, windows-rollback restores the previous manifest
+  #   6 windows-ready         the verification is recorded; "ready" (button on) only with the owner's LEGAL_ACKNOWLEDGED=yes; the release becomes a normal, latest release
   windows-build:
     if: ${{ inputs.platform == 'windows' }}
     runs-on: windows-latest
@@ -47,30 +56,30 @@ jobs:
           SHA=$(python -c "import json;print(json.load(open('pins/windows.json'))['setup']['sha256'])")
           SIZE=$(python -c "import json;print(json.load(open('pins/windows.json'))['setup']['size'])")
           VER=$(python -c "import json;print(json.load(open('pins/windows.json'))['version'])")
-          python bootstrap/windows/build.py --version "$VER" --setup-sha256 "$SHA" --setup-size "$SIZE" --out dist/WhisperMedical-Installer-Windows.exe
+          python bootstrap/windows/build.py --version "$VER" --setup-sha256 "$SHA" --setup-size "$SIZE" --out dist/MELETRA-Installer-Windows.exe
           python -m pytest tests/test_windows_bootstrapper.py tests/test_site_tools.py -q
-          python scripts/build_entries.py windows dist/WhisperMedical-Installer-Windows.exe > dist/entry.json
+          python scripts/build_entries.py windows dist/MELETRA-Installer-Windows.exe > dist/entry.json
+          cp pins/windows.json dist/pins.json
           cat dist/entry.json | head -20
           echo "sha=$(python -c "import json;print(json.load(open('dist/entry.json'))['bootstrapper']['sha256'])")" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v4
         with:
           name: windows-installer
           path: |
-            dist/WhisperMedical-Installer-Windows.exe
+            dist/MELETRA-Installer-Windows.exe
             dist/entry.json
+            dist/pins.json
 
-  windows-publish:
+  windows-stage:
     needs: windows-build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: main
       - uses: actions/download-artifact@v4
         with:
           name: windows-installer
           path: dist
-      - name: Complete the release and publish it
+      - name: Complete the release and make it a STAGING (pre-)release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -85,67 +94,100 @@ jobs:
           if have.get(want["name"]) != want["size"]:
               sys.exit(f"the release does not hold the installer {want['name']} with {want['size']} bytes (found {have.get(want['name'])})")
           EOF
-          gh release upload "$TAG" dist/WhisperMedical-Installer-Windows.exe licenses/THIRD_PARTY_LICENSES.txt licenses/MODEL_LICENSES.txt --clobber
-          gh release edit "$TAG" --draft=false --latest=false --title "WhisperMedical $VER - Windows (x64)" \
-            --notes "Download page: https://twonezerotwo-hue.github.io/whispermedical-downloads/ . Run WhisperMedical-Installer-Windows.exe; it fetches and checks everything else. You do not need to download the other files by hand."
-      - name: Write the manifest entry (uploaded, not yet announced)
-        run: |
-          VER=$(python3 -c "import json;print(json.load(open('pins/windows.json'))['version'])")
-          python3 scripts/sitetool.py set-platform windows dist/entry.json
-          git config user.name "WhisperMedical"; git config user.email "twonezerotwo-hue@users.noreply.github.com"
-          git add release-manifest.json latest
-          git commit -m "Manifest: Windows $VER uploaded (verification running)" || true
-          git pull --rebase origin main && git push origin HEAD:main
+          python3 - <<'EOF'
+          import json
+          pins = json.load(open("pins/windows.json")); entry = json.load(open("dist/entry.json"))
+          lines = [f"{pins['setup']['sha256']}  {pins['setup']['name']}", f"{entry['bootstrapper']['sha256']}  {entry['bootstrapper']['name']}"]
+          open("dist/SHA256SUMS.txt", "w", newline="\n").write("\n".join(lines) + "\n")
+          EOF
+          cat dist/SHA256SUMS.txt
+          NOTES="release-notes/MELETRA-$VER.md"; test -f "$NOTES" || { echo "::error::$NOTES is missing"; exit 1; }
+          gh release upload "$TAG" dist/MELETRA-Installer-Windows.exe dist/SHA256SUMS.txt licenses/THIRD_PARTY_LICENSES.txt licenses/MODEL_LICENSES.txt --clobber
+          gh release edit "$TAG" --draft=false --prerelease --latest=false --title "MELETRA $VER" --notes-file "$NOTES"
+          gh release view "$TAG" --json isDraft,isPrerelease,assets --jq '{isDraft, isPrerelease, assets: [.assets[] | {name, size}]}'
 
-  windows-verify:
-    needs: [windows-build, windows-publish]
+  windows-verify-clean:
+    needs: [windows-build, windows-stage]
     runs-on: windows-latest
-    timeout-minutes: 90
+    timeout-minutes: 120
     env:
       EXPECT_SHA: ${{ needs.windows-build.outputs.sha }}
     steps:
-      - name: Wait until the public manifest shows THIS build's entry (GitHub Pages)
-        shell: pwsh
-        run: |
-          for ($i = 0; $i -lt 80; $i++) {
-            try { $m = Invoke-RestMethod "$env:PAGE/release-manifest.json?x=$(Get-Random)"; if ($m.windows.bootstrapper.sha256 -eq $env:EXPECT_SHA) { break } } catch {}
-            Start-Sleep 15
-          }
-          if ($m.windows.bootstrapper.sha256 -ne $env:EXPECT_SHA) { throw "the manifest never showed the entry of this build" }
-          $m.windows | ConvertTo-Json -Depth 4 | Out-File manifest-windows.json
-          "BOOT_URL=$($m.windows.bootstrapper.url)" | Out-File -Append $env:GITHUB_ENV
-          "BOOT_SHA=$($m.windows.bootstrapper.sha256)" | Out-File -Append $env:GITHUB_ENV
-      - name: Download the installer like a visitor (no token) and check it
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-installer
+          path: dist
+      - name: Download the staged files like a visitor (no token, no login) and check every byte
         shell: pwsh
         run: |
           Remove-Item Env:GH_TOKEN, Env:GITHUB_TOKEN -ErrorAction SilentlyContinue
-          Invoke-WebRequest $env:BOOT_URL -OutFile boot.exe
-          $h = (Get-FileHash boot.exe -Algorithm SHA256).Hash.ToLower()
-          "downloaded boot.exe $((Get-Item boot.exe).Length) bytes sha256 $h"
-          if ($h -ne $env:BOOT_SHA) { throw "the installer program differs from the manifest" }
-      - name: Run the real installer (downloads, verifies, installs)
+          $pins = Get-Content pins/windows.json -Raw | ConvertFrom-Json
+          $base = "https://github.com/twonezerotwo-hue/whispermedical-downloads/releases/download/windows-v$($pins.version)"
+          New-Item -ItemType Directory -Force stage | Out-Null
+          curl.exe -fL --retry 8 --retry-all-errors -o "stage\$($pins.setup.name)" "$base/$($pins.setup.name)"
+          curl.exe -fL --retry 8 --retry-all-errors -o stage\MELETRA-Installer-Windows.exe "$base/MELETRA-Installer-Windows.exe"
+          curl.exe -fL --retry 8 --retry-all-errors -o stage\SHA256SUMS.txt "$base/SHA256SUMS.txt"
+          $setup = Get-Item "stage\$($pins.setup.name)"
+          $h = (Get-FileHash $setup.FullName -Algorithm SHA256).Hash.ToLower()
+          "setup: $($setup.Length) bytes sha256 $h"
+          if ($setup.Length -ne [int64]$pins.setup.size -or $h -ne $pins.setup.sha256) { throw "the public setup differs from the pinned size / SHA-256" }
+          $b = (Get-FileHash stage\MELETRA-Installer-Windows.exe -Algorithm SHA256).Hash.ToLower()
+          "installer program: sha256 $b"
+          if ($b -ne $env:EXPECT_SHA) { throw "the public installer program is not the one that was built" }
+          $sums = Get-Content stage\SHA256SUMS.txt
+          if (-not ($sums -contains "$h  $($pins.setup.name)") -or -not ($sums -contains "$b  MELETRA-Installer-Windows.exe")) { throw "SHA256SUMS.txt does not match the files" }
+          "all public bytes match"
+      - name: Run the installer program (test build of the same sources and pins) against the public addresses of this staged release
+        shell: bash
+        run: |
+          VER=$(python -c "import json;print(json.load(open('pins/windows.json'))['version'])")
+          SHA=$(python -c "import json;print(json.load(open('pins/windows.json'))['setup']['sha256'])")
+          SIZE=$(python -c "import json;print(json.load(open('pins/windows.json'))['setup']['size'])")
+          python bootstrap/windows/build.py --test --version "$VER" --setup-sha256 "$SHA" --setup-size "$SIZE" --out dist/boot_stage.exe
+          mkdir -p www
+          python - <<'EOF'
+          import json
+          entry = json.load(open("dist/entry.json")); entry["status"] = "uploaded"
+          json.dump({"version": entry["version"], "product_version": entry["version"], "windows": entry}, open("www/manifest.json", "w"))
+          EOF
+          python -m http.server 8765 --bind 127.0.0.1 --directory www > http.log 2>&1 &
+          SERVER=$!
+          sleep 3
+          set +e
+          ./dist/boot_stage.exe --console --no-launch --manifest-url http://127.0.0.1:8765/manifest.json > boot.out.txt 2> boot.err.txt
+          CODE=$?
+          kill $SERVER 2>/dev/null
+          tail -40 boot.out.txt
+          [ $CODE -eq 0 ] || { cat boot.err.txt; echo "installer exit code $CODE"; exit 1; }
+      - name: The installed program is MELETRA and the model is in place
         shell: pwsh
         run: |
-          $p = Start-Process .\boot.exe -ArgumentList '--console','--unattended','--no-launch' -Wait -PassThru -RedirectStandardOutput boot.out.txt -RedirectStandardError boot.err.txt
-          Get-Content boot.out.txt | Select-Object -Last 40
-          if ($p.ExitCode -ne 0) { Get-Content boot.err.txt; throw "installer exit code $($p.ExitCode)" }
           $key = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{6F0B7C52-3A1E-4E7D-9C54-8D2A7B1E4F60}_is1'
-          $dir = (Get-ItemProperty $key).InstallLocation
-          $exe = Join-Path $dir 'MedicalLectureTranscriber.exe'
-          if (-not (Test-Path $exe)) { throw "the program was not installed (looked in $dir)" }
-          "installed in $dir"
+          $item = Get-ItemProperty $key
+          "$($item.DisplayName) $($item.DisplayVersion) in $($item.InstallLocation)"
+          if ($item.DisplayName -notlike 'MELETRA*') { throw "Apps & Features shows '$($item.DisplayName)'" }
+          $exe = Join-Path $item.InstallLocation 'MELETRA.exe'
+          if (-not (Test-Path $exe)) { throw "the program was not installed (looked in $($item.InstallLocation))" }
+          $vi = (Get-Item $exe).VersionInfo
+          "exe: $($vi.ProductName) $($vi.FileVersion) - $($vi.FileDescription)"
+          if ($vi.ProductName -ne 'MELETRA') { throw "the exe says '$($vi.ProductName)'" }
+          if (-not (Test-Path "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\MELETRA")) { throw "no MELETRA entry in the Start menu" }
           $model = "$env:LOCALAPPDATA\MedicalLectureTranscriber\models\whisper-large-v3"
           Get-ChildItem $model | Select-Object Name, Length | Format-Table
           if (-not (Test-Path "$model\model.bin")) { throw "the speech model was not placed" }
-          if (Test-Path "$env:LOCALAPPDATA\WhisperMedicalInstaller\cache") { throw "temporary installer files were left behind" }
-      - name: The installed program works with the network blocked
+          if (Test-Path "$env:LOCALAPPDATA\MELETRAInstaller\cache") { throw "temporary installer files were left behind" }
+      - name: The installed program works with the network blocked (self-test, a short clip is transcribed)
         shell: pwsh
         env:
           QT_QPA_PLATFORM: offscreen
         run: |
           $key = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{6F0B7C52-3A1E-4E7D-9C54-8D2A7B1E4F60}_is1'
-          $exe = Join-Path (Get-ItemProperty $key).InstallLocation 'MedicalLectureTranscriber.exe'
-          New-NetFirewallRule -DisplayName "block-whispermedical" -Direction Outbound -Action Block -Program $exe | Out-Null
+          $exe = Join-Path (Get-ItemProperty $key).InstallLocation 'MELETRA.exe'
+          New-NetFirewallRule -DisplayName "block-meletra" -Direction Outbound -Action Block -Program $exe | Out-Null
           $env:PATH = "$env:SystemRoot\system32;$env:SystemRoot"                       # no tools of the build machine on the path
           $st = Start-Process $exe -ArgumentList '--selftest', "$PWD\selftest.json" -Wait -PassThru        # a windowed program: only Start-Process waits for it
           "self-test exit code $($st.ExitCode)"
@@ -164,10 +206,182 @@ jobs:
           "transcript: $text"
           if ($text -notmatch 'ask not what your country can do for you') { throw "unexpected transcript" }
           foreach ($f in 'local_clean_transcript.txt','medical_corrected_transcript.txt','correction_report.json','medical_quality_report.json') { if (-not (Test-Path (Join-Path $res.output_dir $f))) { throw "missing $f" } }
-          Remove-NetFirewallRule -DisplayName "block-whispermedical"
+          Remove-NetFirewallRule -DisplayName "block-meletra"
+
+  windows-verify-upgrade:
+    needs: [windows-build, windows-stage]
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install the PUBLIC WhisperMedical 4.0.0 (the program an existing user has) and give it some user data
+        shell: pwsh
+        run: |
+          Remove-Item Env:GH_TOKEN, Env:GITHUB_TOKEN -ErrorAction SilentlyContinue
+          $old = "https://github.com/twonezerotwo-hue/whispermedical-downloads/releases/download/windows-v4.0.0/WhisperMedical-Setup-Windows-x64.exe"
+          curl.exe -fL --retry 8 --retry-all-errors -o old-setup.exe $old
+          $h = (Get-FileHash old-setup.exe -Algorithm SHA256).Hash.ToLower()
+          if ($h -ne '2c8f8613c94367b496a507d6da9cd46e8b4d4bdd85b8533c5e3858998e4e9c2b') { throw "unexpected 4.0.0 setup ($h)" }
+          $p = Start-Process .\old-setup.exe -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "the 4.0.0 setup ended with $($p.ExitCode)" }
+          $key = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{6F0B7C52-3A1E-4E7D-9C54-8D2A7B1E4F60}_is1'
+          $item = Get-ItemProperty $key
+          "before: $($item.DisplayName) $($item.DisplayVersion) in $($item.InstallLocation)"
+          if (-not (Test-Path (Join-Path $item.InstallLocation 'MedicalLectureTranscriber.exe'))) { throw "the old program is not there" }
+          $data = "$env:LOCALAPPDATA\MedicalLectureTranscriber"
+          New-Item -ItemType Directory -Force "$data\Transcripts\My lecture", "$data\models\keep-me" | Out-Null
+          Set-Content "$data\Transcripts\My lecture\local_clean_transcript.txt" "the student's transcript"
+          Set-Content "$data\settings.json" '{"language": "tr", "theme": "light"}'
+          Set-Content "$data\models\keep-me\model.bin" "a model"
+      - name: Install the PUBLIC MELETRA setup of this staged release over it, silently, exactly as the installer program does
+        shell: pwsh
+        run: |
+          Remove-Item Env:GH_TOKEN, Env:GITHUB_TOKEN -ErrorAction SilentlyContinue
+          $pins = Get-Content pins/windows.json -Raw | ConvertFrom-Json
+          $base = "https://github.com/twonezerotwo-hue/whispermedical-downloads/releases/download/windows-v$($pins.version)"
+          curl.exe -fL --retry 8 --retry-all-errors -o new-setup.exe "$base/$($pins.setup.name)"
+          $h = (Get-FileHash new-setup.exe -Algorithm SHA256).Hash.ToLower()
+          if ($h -ne $pins.setup.sha256) { throw "the public setup differs from the pinned SHA-256" }
+          $p = Start-Process .\new-setup.exe -ArgumentList '/SILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "the MELETRA setup ended with $($p.ExitCode)" }
+      - name: One program is left - MELETRA - and the user's data is untouched
+        shell: pwsh
+        run: |
+          $uninstall = Get-ChildItem 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall', 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall' -ErrorAction SilentlyContinue | Get-ItemProperty |
+              Where-Object { $_.DisplayName -match 'MELETRA|WhisperMedical|Medical Lecture Transcriber' }
+          $uninstall | Select-Object DisplayName, DisplayVersion, InstallLocation | Format-Table
+          if (@($uninstall).Count -ne 1 -or $uninstall.DisplayName -notlike 'MELETRA*') { throw "Apps & Features must list exactly one program, MELETRA" }
+          $dir = $uninstall.InstallLocation
+          if (-not (Test-Path (Join-Path $dir 'MELETRA.exe'))) { throw "MELETRA.exe is missing in $dir" }
+          if (Test-Path (Join-Path $dir 'MedicalLectureTranscriber.exe')) { throw "the old program file is still there" }
+          $menu = "$env:ProgramData\Microsoft\Windows\Start Menu\Programs"
+          if (-not (Test-Path "$menu\MELETRA")) { throw "no MELETRA entry in the Start menu" }
+          foreach ($old in 'WhisperMedical', 'Medical Lecture Transcriber') { if (Test-Path "$menu\$old") { throw "the old Start menu folder '$old' is still there" } }
+          $data = "$env:LOCALAPPDATA\MedicalLectureTranscriber"
+          foreach ($f in 'Transcripts\My lecture\local_clean_transcript.txt', 'settings.json', 'models\keep-me\model.bin') { if (-not (Test-Path "$data\$f")) { throw "user data was lost: $f" } }
+          if ((Get-Content "$data\settings.json" -Raw) -notmatch '"tr"') { throw "settings.json was changed" }
+          "upgrade ok: one program (MELETRA), the data of the 4.0.0 user is untouched"
+
+  windows-promote:
+    needs: [windows-build, windows-verify-clean, windows-verify-upgrade]
+    runs-on: ubuntu-latest
+    outputs:
+      before: ${{ steps.promote.outputs.before }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-installer
+          path: dist
+      - name: Put this release into the public manifest (the last step; one commit)
+        id: promote
+        run: |
+          VER=$(python3 -c "import json;print(json.load(open('dist/pins.json'))['version'])")
+          echo "before=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          python3 scripts/sitetool.py set-platform windows dist/entry.json
+          python3 scripts/sitetool.py set-product "$VER" --name MELETRA
+          python3 scripts/sitetool.py validate
+          git config user.name "MELETRA"; git config user.email "twonezerotwo-hue@users.noreply.github.com"
+          git add release-manifest.json latest
+          git commit -m "Manifest: MELETRA $VER for Windows (staging verification passed; the shipped installer program is verified next)" || true
+          git pull --rebase origin main && git push origin HEAD:main
+
+  windows-verify:
+    needs: [windows-build, windows-promote]
+    runs-on: windows-latest
+    timeout-minutes: 90
+    env:
+      EXPECT_SHA: ${{ needs.windows-build.outputs.sha }}
+    steps:
+      - name: Wait until the public manifest shows THIS build's entry (GitHub Pages)
+        shell: pwsh
+        run: |
+          for ($i = 0; $i -lt 80; $i++) {
+            try { $m = Invoke-RestMethod "$env:PAGE/release-manifest.json?x=$(Get-Random)"; if ($m.windows.bootstrapper.sha256 -eq $env:EXPECT_SHA) { break } } catch {}
+            Start-Sleep 15
+          }
+          if ($m.windows.bootstrapper.sha256 -ne $env:EXPECT_SHA) { throw "the manifest never showed the entry of this build" }
+          $m.windows | ConvertTo-Json -Depth 4 | Out-File manifest-windows.json
+          "BOOT_URL=$($m.windows.bootstrapper.url)" | Out-File -Append $env:GITHUB_ENV
+          "BOOT_SHA=$($m.windows.bootstrapper.sha256)" | Out-File -Append $env:GITHUB_ENV
+      - name: Download the installer program like a visitor (no token) and check it
+        shell: pwsh
+        run: |
+          Remove-Item Env:GH_TOKEN, Env:GITHUB_TOKEN -ErrorAction SilentlyContinue
+          Invoke-WebRequest $env:BOOT_URL -OutFile boot.exe
+          $h = (Get-FileHash boot.exe -Algorithm SHA256).Hash.ToLower()
+          "downloaded boot.exe $((Get-Item boot.exe).Length) bytes sha256 $h"
+          if ($h -ne $env:BOOT_SHA) { throw "the installer program differs from the manifest" }
+      - name: Run the shipped installer program for real (downloads, verifies, installs)
+        shell: pwsh
+        run: |
+          $p = Start-Process .\boot.exe -ArgumentList '--console','--unattended','--no-launch' -Wait -PassThru -RedirectStandardOutput boot.out.txt -RedirectStandardError boot.err.txt
+          Get-Content boot.out.txt | Select-Object -Last 40
+          if ($p.ExitCode -ne 0) { Get-Content boot.err.txt; throw "installer exit code $($p.ExitCode)" }
+          $key = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{6F0B7C52-3A1E-4E7D-9C54-8D2A7B1E4F60}_is1'
+          $dir = (Get-ItemProperty $key).InstallLocation
+          $exe = Join-Path $dir 'MELETRA.exe'
+          if (-not (Test-Path $exe)) { throw "the program was not installed (looked in $dir)" }
+          "installed in $dir"
+          $model = "$env:LOCALAPPDATA\MedicalLectureTranscriber\models\whisper-large-v3"
+          Get-ChildItem $model | Select-Object Name, Length | Format-Table
+          if (-not (Test-Path "$model\model.bin")) { throw "the speech model was not placed" }
+          if (Test-Path "$env:LOCALAPPDATA\MELETRAInstaller\cache") { throw "temporary installer files were left behind" }
+      - name: The installed program works with the network blocked
+        shell: pwsh
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          $key = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{6F0B7C52-3A1E-4E7D-9C54-8D2A7B1E4F60}_is1'
+          $exe = Join-Path (Get-ItemProperty $key).InstallLocation 'MELETRA.exe'
+          New-NetFirewallRule -DisplayName "block-meletra" -Direction Outbound -Action Block -Program $exe | Out-Null
+          $env:PATH = "$env:SystemRoot\system32;$env:SystemRoot"                       # no tools of the build machine on the path
+          $st = Start-Process $exe -ArgumentList '--selftest', "$PWD\selftest.json" -Wait -PassThru        # a windowed program: only Start-Process waits for it
+          "self-test exit code $($st.ExitCode)"
+          $r = Get-Content selftest.json -Raw | ConvertFrom-Json
+          $r.checks | ForEach-Object { "{0,-18} {1} {2}" -f $_.name, $(if ($_.ok) {'ok'} else {'FAIL'}), $_.detail.Substring(0, [Math]::Min(90, $_.detail.Length)) }
+          if (-not $r.ok) { throw "self-test failed" }
+          $model = ($r.checks | Where-Object name -eq 'Model discovery').detail
+          if ($model -notmatch 'Whisper Large-v3: installed') { throw "model not found: $model" }
+          Invoke-WebRequest $env:JFK_URL -OutFile jfk.flac
+          $env:MLT_ALLOW_MULTIPLE = "1"
+          $p = Start-Process $exe -ArgumentList '--autorun', "$PWD\jfk.flac", '--result', "$PWD\result.json", '--timeout', '1500', '--language', 'en' -Wait -PassThru
+          $res = Get-Content result.json -Raw | ConvertFrom-Json
+          $res | Select-Object state, device, compute_type, audio_seconds, output_dir | Format-List
+          if ($res.state -ne 'completed') { throw "transcription did not complete: $($res.state)" }
+          $text = (Get-Content (Join-Path $res.output_dir 'local_raw_transcript.txt') -Raw).ToLower()
+          "transcript: $text"
+          if ($text -notmatch 'ask not what your country can do for you') { throw "unexpected transcript" }
+          foreach ($f in 'local_clean_transcript.txt','medical_corrected_transcript.txt','correction_report.json','medical_quality_report.json') { if (-not (Test-Path (Join-Path $res.output_dir $f))) { throw "missing $f" } }
+          Remove-NetFirewallRule -DisplayName "block-meletra"
+
+  # If the shipped installer program fails its real test, the manifest goes back to what it was before windows-promote: the previous release stays what the public sees.
+  windows-rollback:
+    needs: [windows-promote, windows-verify]
+    if: ${{ always() && needs.windows-promote.result == 'success' && needs.windows-verify.result != 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Restore the previous manifest and take the staged release off the public list
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BEFORE: ${{ needs.windows-promote.outputs.before }}
+        run: |
+          git checkout "$BEFORE" -- release-manifest.json latest
+          git config user.name "MELETRA"; git config user.email "twonezerotwo-hue@users.noreply.github.com"
+          git add release-manifest.json latest
+          git commit -m "Manifest: rolled back - the shipped installer program of the new release failed its end-to-end test" || true
+          git pull --rebase origin main && git push origin HEAD:main
+          VER=$(python3 -c "import json;print(json.load(open('pins/windows.json'))['version'])")
+          gh release edit "windows-v$VER" --draft=true || true
+          echo "::error::The new release failed its end-to-end test; the previous manifest was restored."
 
   windows-ready:
-    needs: windows-verify
+    needs: [windows-verify, windows-build]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -177,20 +391,23 @@ jobs:
         env:
           LEGAL: ${{ vars.LEGAL_ACKNOWLEDGED }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           VER=$(python3 -c "import json;print(json.load(open('pins/windows.json'))['version'])")
           python3 scripts/sitetool.py set-verified windows "$RUN_URL"
           if [ "$LEGAL" = "yes" ]; then
             python3 scripts/sitetool.py set-status windows ready
-            MSG="Windows $VER verified end to end: download button enabled"
+            MSG="MELETRA $VER for Windows verified end to end: download button enabled"
           else
             echo "::warning::Verified, but NOT announced: the owner has not confirmed the open-source notices (set the repository variable LEGAL_ACKNOWLEDGED=yes, then run the announce workflow)."
-            MSG="Windows $VER verified end to end (button stays disabled until the owner confirms the notices)"
+            MSG="MELETRA $VER for Windows verified end to end (button stays disabled until the owner confirms the notices)"
           fi
-          git config user.name "WhisperMedical"; git config user.email "twonezerotwo-hue@users.noreply.github.com"
+          git config user.name "MELETRA"; git config user.email "twonezerotwo-hue@users.noreply.github.com"
           git add release-manifest.json latest
           git commit -m "$MSG" || true
           git pull --rebase origin main && git push origin HEAD:main
+          # the staged pre-release becomes the normal, latest release (the files are the ones that were just verified)
+          gh release edit "windows-v$VER" --prerelease=false --latest
 
   # ================================================================================================================== Intel Mac
   mac-build:
@@ -210,14 +427,14 @@ jobs:
           bash bootstrap/mac-intel/build.sh pins/mac-intel.json out
           python -m pip install --quiet pytest
           python -m pytest tests/test_mac_installer.py tests/test_site_tools.py -q
-          python scripts/build_entries.py mac-intel out/WhisperMedical-Installer-IntelMac.zip > out/entry.json
+          python scripts/build_entries.py mac-intel out/MELETRA-Installer-IntelMac.zip > out/entry.json
           head -20 out/entry.json
           echo "sha=$(python -c "import json;print(json.load(open('out/entry.json'))['bootstrapper']['sha256'])")" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v4
         with:
           name: mac-installer
           path: |
-            out/WhisperMedical-Installer-IntelMac.zip
+            out/MELETRA-Installer-IntelMac.zip
             out/entry.json
 
   mac-publish:
@@ -246,15 +463,15 @@ jobs:
           if missing:
               sys.exit("the release is missing or has wrong-sized pieces: " + ", ".join(missing))
           EOF
-          gh release upload "$TAG" out/WhisperMedical-Installer-IntelMac.zip licenses/THIRD_PARTY_LICENSES.txt licenses/MODEL_LICENSES.txt --clobber
-          gh release edit "$TAG" --draft=false --latest=false --title "WhisperMedical $VER - Intel Mac" \
-            --notes "Download page: https://twonezerotwo-hue.github.io/whispermedical-downloads/ . Open WhisperMedical-Installer-IntelMac.zip, then the installer app inside; it fetches and checks everything else. Intel Macs only."
+          gh release upload "$TAG" out/MELETRA-Installer-IntelMac.zip licenses/THIRD_PARTY_LICENSES.txt licenses/MODEL_LICENSES.txt --clobber
+          gh release edit "$TAG" --draft=false --latest=false --title "MELETRA $VER - Intel Mac" \
+            --notes "Download page: https://twonezerotwo-hue.github.io/whispermedical-downloads/ . Open MELETRA-Installer-IntelMac.zip, then the installer app inside; it fetches and checks everything else. Intel Macs only."
       - name: Write the manifest entry (uploaded, not yet announced)
         run: |
           python3 -c "import json;print(json.dumps(json.load(open('out/entry.json'))))" > /tmp/e.json
           VER=$(python3 -c "import json;print(json.load(open('pins/mac-intel.json'))['version'])")
           python3 scripts/sitetool.py set-platform mac-intel /tmp/e.json
-          git config user.name "WhisperMedical"; git config user.email "twonezerotwo-hue@users.noreply.github.com"
+          git config user.name "MELETRA"; git config user.email "twonezerotwo-hue@users.noreply.github.com"
           git add release-manifest.json latest
           git commit -m "Manifest: Intel Mac $VER uploaded (verification running)" || true
           git pull --rebase origin main && git push origin HEAD:main
@@ -277,21 +494,21 @@ jobs:
       - name: Download the installer like a visitor (no token, no login) and check it
         run: |
           unset GH_TOKEN GITHUB_TOKEN
-          curl -fL --proto '=https' -o WhisperMedical-Installer-IntelMac.zip "$(cat boot_url)"
-          test "$(shasum -a 256 WhisperMedical-Installer-IntelMac.zip | cut -d' ' -f1)" = "$(cat boot_sha)"
-          unzip -q WhisperMedical-Installer-IntelMac.zip
-          ls -la "WhisperMedical Installer.app/Contents/Resources"
-          cat "WhisperMedical Installer.app/Contents/Resources/pins.env"
+          curl -fL --proto '=https' -o MELETRA-Installer-IntelMac.zip "$(cat boot_url)"
+          test "$(shasum -a 256 MELETRA-Installer-IntelMac.zip | cut -d' ' -f1)" = "$(cat boot_sha)"
+          unzip -q MELETRA-Installer-IntelMac.zip
+          ls -la "MELETRA Installer.app/Contents/Resources"
+          cat "MELETRA Installer.app/Contents/Resources/pins.env"
       - name: Run the real installer script (downloads about 3 GB, verifies, mounts, copies)
         run: |
           unset GH_TOKEN GITHUB_TOKEN
           df -h /System/Volumes/Data | tail -1
-          bash "WhisperMedical Installer.app/Contents/Resources/install.sh" --dest "$RUNNER_TEMP/Applications" --no-open --progress-file "$RUNNER_TEMP/progress.txt"
+          bash "MELETRA Installer.app/Contents/Resources/install.sh" --dest "$RUNNER_TEMP/Applications" --no-open --progress-file "$RUNNER_TEMP/progress.txt"
           tail -3 "$RUNNER_TEMP/progress.txt"
-          APP="$RUNNER_TEMP/Applications/WhisperMedical.app"; [ -d "$APP" ] || APP="$RUNNER_TEMP/Applications/Medical Lecture Transcriber.app"
+          APP="$RUNNER_TEMP/Applications/MELETRA.app"; [ -d "$APP" ] || APP="$RUNNER_TEMP/Applications/WhisperMedical.app"; [ -d "$APP" ] || APP="$RUNNER_TEMP/Applications/Medical Lecture Transcriber.app"
           test -d "$APP"
-          test ! -d "$HOME/Library/Caches/WhisperMedicalInstaller" || { echo "temporary files left behind"; exit 1; }
-          mount | grep -q "WhisperMedical" && { echo "image still mounted"; exit 1; } || true
+          test ! -d "$HOME/Library/Caches/MELETRAInstaller" || { echo "temporary files left behind"; exit 1; }
+          mount | grep -q "MELETRA" && { echo "image still mounted"; exit 1; } || true
           echo "quarantine attribute: $(xattr -p com.apple.quarantine "$APP" 2>&1 | head -1)"
           spctl --assess --type execute -vv "$APP" 2>&1 | head -2 || true
       - name: The installer APP itself (window code, progress file, install into a folder) - same download again
@@ -300,14 +517,14 @@ jobs:
         run: |
           unset GH_TOKEN GITHUB_TOKEN
           rm -rf "$RUNNER_TEMP/Applications2"; mkdir -p "$RUNNER_TEMP/Applications2"
-          WM_AUTOMATED=1 WM_DEST="$RUNNER_TEMP/Applications2" WM_ERROR_FILE="$RUNNER_TEMP/applet_error.txt" "WhisperMedical Installer.app/Contents/MacOS/applet" || true
+          WM_AUTOMATED=1 WM_DEST="$RUNNER_TEMP/Applications2" WM_ERROR_FILE="$RUNNER_TEMP/applet_error.txt" "MELETRA Installer.app/Contents/MacOS/applet" || true
           if [ -f "$RUNNER_TEMP/applet_error.txt" ]; then echo "installer app reported: $(cat "$RUNNER_TEMP/applet_error.txt")"; exit 1; fi
-          test -d "$RUNNER_TEMP/Applications2/WhisperMedical.app" || test -d "$RUNNER_TEMP/Applications2/Medical Lecture Transcriber.app"
+          test -d "$RUNNER_TEMP/Applications2/MELETRA.app" || test -d "$RUNNER_TEMP/Applications2/WhisperMedical.app" || test -d "$RUNNER_TEMP/Applications2/Medical Lecture Transcriber.app"
           echo "installer app: ok"
       - name: The installed app works with the network blocked
         run: |
-          APP="$RUNNER_TEMP/Applications/WhisperMedical.app"; [ -d "$APP" ] || APP="$RUNNER_TEMP/Applications/Medical Lecture Transcriber.app"
-          EXE="$APP/Contents/MacOS/MedicalLectureTranscriber"
+          APP="$RUNNER_TEMP/Applications/MELETRA.app"; [ -d "$APP" ] || APP="$RUNNER_TEMP/Applications/WhisperMedical.app"; [ -d "$APP" ] || APP="$RUNNER_TEMP/Applications/Medical Lecture Transcriber.app"
+          EXE="$APP/Contents/MacOS/MELETRA"; [ -x "$EXE" ] || EXE="$APP/Contents/MacOS/MedicalLectureTranscriber"
           export HOME_TEST="$RUNNER_TEMP/home"; mkdir -p "$HOME_TEST"
           BLOCK='(version 1)(allow default)(deny network*)(allow network* (remote unix-socket))(allow network* (remote ip "localhost:*"))'
           ! sandbox-exec -p "$BLOCK" python3 -c "import socket; socket.create_connection(('1.1.1.1',443),5)" 2>/dev/null || { echo "network block did not work"; exit 1; }
@@ -359,7 +576,7 @@ jobs:
             echo "::warning::Verified, but NOT announced: the owner has not confirmed the open-source notices (set the repository variable LEGAL_ACKNOWLEDGED=yes, then run the announce workflow)."
             MSG="Intel Mac $VER verified end to end (button stays disabled until the owner confirms the notices)"
           fi
-          git config user.name "WhisperMedical"; git config user.email "twonezerotwo-hue@users.noreply.github.com"
+          git config user.name "MELETRA"; git config user.email "twonezerotwo-hue@users.noreply.github.com"
           git add release-manifest.json latest
           git commit -m "$MSG" || true
           git pull --rebase origin main && git push origin HEAD:main

@@ -85,7 +85,7 @@ def test_the_audit_accepts_the_public_repo_and_noreply_addresses(tmp_path):
 def test_entries_follow_the_pins_and_never_say_ready(tmp_path):
     import build_entries as be
 
-    boot = tmp_path / "WhisperMedical-Installer-Windows.exe"
+    boot = tmp_path / "MELETRA-Installer-Windows.exe"
     boot.write_bytes(b"MZ" + b"0" * 100)
     pins = json.loads((Path(be.ROOT) / "pins" / "windows.json").read_text(encoding="utf-8"))
     layout = json.loads((Path(be.ROOT) / "scripts" / "model_parts.json").read_text(encoding="utf-8"))
@@ -96,7 +96,7 @@ def test_entries_follow_the_pins_and_never_say_ready(tmp_path):
     assert [p["size"] for p in model["model.bin"]["parts"]] == [1992294400, 1094989837] and sum(p["size"] for p in model["model.bin"]["parts"]) == model["model.bin"]["size"]
     assert w["download_bytes"] == pins["setup"]["size"] + sum(f["size"] for f in layout["files"])
     mac_pins = json.loads((Path(be.ROOT) / "pins" / "mac-intel.json").read_text(encoding="utf-8"))
-    z = tmp_path / "WhisperMedical-Installer-IntelMac.zip"
+    z = tmp_path / "MELETRA-Installer-IntelMac.zip"
     z.write_bytes(b"PK")
     m = be.mac_entry(mac_pins, z)
     assert m["status"] == "uploaded" and sum(p["size"] for p in m["payload"]["dmg"]["parts"]) == m["payload"]["dmg"]["size"]

@@ -1,6 +1,6 @@
 name: test-windows-installer
 
-# The Windows installer program (WhisperMedical-Installer-Windows.exe): built with the pinned values exactly as for a release, then tested against a local
+# The Windows installer program (MELETRA-Installer-Windows.exe): built with the pinned values exactly as for a release, then tested against a local
 # server with a fake payload (download, resume after cut connections, every refusal). The real end-to-end run is finalize-release.
 on:
   push:
@@ -28,7 +28,7 @@ jobs:
           python -m pip install --quiet pytest
           SHA=$(python -c "import json;print(json.load(open('pins/windows.json'))['setup']['sha256'])")
           SIZE=$(python -c "import json;print(json.load(open('pins/windows.json'))['setup']['size'])")
-          python bootstrap/windows/build.py --setup-sha256 "$SHA" --setup-size "$SIZE" --out dist/WhisperMedical-Installer-Windows.exe
+          python bootstrap/windows/build.py --setup-sha256 "$SHA" --setup-size "$SIZE" --out dist/MELETRA-Installer-Windows.exe
           ls -l dist
       - name: Tests (fake payload, local server)
         shell: bash
@@ -36,7 +36,7 @@ jobs:
       - name: The program starts and refuses cleanly while nothing is published
         shell: pwsh
         run: |
-          $p = Start-Process .\dist\WhisperMedical-Installer-Windows.exe -ArgumentList '--console','--unattended','--no-launch' -Wait -PassThru -RedirectStandardOutput o.txt -RedirectStandardError e.txt
+          $p = Start-Process .\dist\MELETRA-Installer-Windows.exe -ArgumentList '--console','--unattended','--no-launch' -Wait -PassThru -RedirectStandardOutput o.txt -RedirectStandardError e.txt
           Get-Content o.txt
           "exit code $($p.ExitCode)"
           if ($p.ExitCode -eq 0) { throw "an installer for a platform that is not published must not succeed" }

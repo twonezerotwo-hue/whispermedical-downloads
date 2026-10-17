@@ -1,13 +1,13 @@
 name: test-install-scripts
 
-# The ways a visitor installs WhisperMedical, tested exactly as documented, anonymously (no token, no login, no checkout of the program's source):
+# The ways a visitor installs MELETRA, tested exactly as documented, anonymously (no token, no login, no checkout of the program's source):
 #   unit      the static rules (documented commands == tested commands, no placeholder, manifest rules) and the Windows script against a local server
 #   windows   BOTH paths on a clean Windows machine: "one-command" (the line of the README) and "one-click" (the installer program of the manifest), then the
 #             installed program with the network blocked, a transcription, and the uninstall
 #   mac       the one-command line on an Intel macOS machine: architecture, the availability rule (the Intel Mac package of 4.0.0 does not exist yet, so the
 #             command must refuse and install nothing) - and, as soon as the manifest holds a Mac build of the product version, the whole installation,
 #             the offline start and a transcription
-# A release that is verified but not announced (status "uploaded") is installed in these tests with the test switch WHISPERMEDICAL_ALLOW_UNANNOUNCED=1 /
+# A release that is verified but not announced (status "uploaded") is installed in these tests with the test switch MELETRA_ALLOW_UNANNOUNCED=1 /
 # MLT_ALLOW_UNANNOUNCED=1; the plain command (no switch) must refuse it until the owner announced it.
 on:
   workflow_dispatch:
@@ -42,7 +42,7 @@ jobs:
           python -m pip install --quiet pytest
           python scripts/sitetool.py validate
           python -m pytest tests/test_install_scripts.py tests/test_site_tools.py tests/test_assemble.py -q
-          bash -n install/install-macos.sh "install/Install WhisperMedical.command" bootstrap/mac-intel/build.sh
+          bash -n install/install-macos.sh "install/Install MELETRA.command" bootstrap/mac-intel/build.sh
 
   windows-script:
     runs-on: windows-latest
@@ -78,7 +78,7 @@ jobs:
         if: ${{ matrix.method == 'one-command' && env.WM_STATUS != 'ready' }}
         shell: powershell
         run: |
-          $f = "$env:TEMP\whispermedical-install.ps1"; iwr -UseBasicParsing 'https://twonezerotwo-hue.github.io/whispermedical-downloads/install/install-windows.ps1' -OutFile $f; powershell -NoProfile -ExecutionPolicy Bypass -File $f
+          $f = "$env:TEMP\meletra-install.ps1"; iwr -UseBasicParsing 'https://twonezerotwo-hue.github.io/whispermedical-downloads/install/install-windows.ps1' -OutFile $f; powershell -NoProfile -ExecutionPolicy Bypass -File $f
           "exit code $LASTEXITCODE"
           if ($LASTEXITCODE -ne 3) { throw "the plain command must stop with code 3 while the release is not announced" }
           if (Test-Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{6F0B7C52-3A1E-4E7D-9C54-8D2A7B1E4F60}_is1') { throw "something was installed" }
@@ -87,13 +87,13 @@ jobs:
         if: ${{ matrix.method == 'one-command' }}
         shell: powershell
         env:
-          WHISPERMEDICAL_ALLOW_UNANNOUNCED: "1"
-          WHISPERMEDICAL_NO_LAUNCH: "1"
+          MELETRA_ALLOW_UNANNOUNCED: "1"
+          MELETRA_NO_LAUNCH: "1"
         run: |
-          $f = "$env:TEMP\whispermedical-install.ps1"; iwr -UseBasicParsing 'https://twonezerotwo-hue.github.io/whispermedical-downloads/install/install-windows.ps1' -OutFile $f; powershell -NoProfile -ExecutionPolicy Bypass -File $f
+          $f = "$env:TEMP\meletra-install.ps1"; iwr -UseBasicParsing 'https://twonezerotwo-hue.github.io/whispermedical-downloads/install/install-windows.ps1' -OutFile $f; powershell -NoProfile -ExecutionPolicy Bypass -File $f
           "exit code $LASTEXITCODE"
           if ($LASTEXITCODE -ne 0) { throw "the one-command installation failed" }
-          if (Test-Path "$env:TEMP\WhisperMedicalInstall") { throw "the downloaded installer program was left behind" }
+          if (Test-Path "$env:TEMP\MELETRAInstall") { throw "the downloaded installer program was left behind" }
       - name: Install - ONE CLICK (the installer program of the manifest, downloaded like a visitor)
         if: ${{ matrix.method == 'one-click' }}
         shell: pwsh
@@ -111,12 +111,12 @@ jobs:
         run: |
           $key = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{6F0B7C52-3A1E-4E7D-9C54-8D2A7B1E4F60}_is1'
           $dir = (Get-ItemProperty $key).InstallLocation
-          $exe = Join-Path $dir 'MedicalLectureTranscriber.exe'
+          $exe = Join-Path $dir 'MELETRA.exe'; if (-not (Test-Path $exe)) { $exe = Join-Path $dir 'MedicalLectureTranscriber.exe' }
           if (-not (Test-Path $exe)) { throw "the program was not installed" }
           $model = "$env:LOCALAPPDATA\MedicalLectureTranscriber\models\whisper-large-v3"
           if (-not (Test-Path "$model\model.bin")) { throw "the speech model was not placed" }
-          if (Test-Path "$env:LOCALAPPDATA\WhisperMedicalInstaller\cache") { throw "temporary installer files were left behind" }
-          New-NetFirewallRule -DisplayName "block-whispermedical" -Direction Outbound -Action Block -Program $exe | Out-Null
+          if (Test-Path "$env:LOCALAPPDATA\MELETRAInstaller\cache") { throw "temporary installer files were left behind" }
+          New-NetFirewallRule -DisplayName "block-meletra" -Direction Outbound -Action Block -Program $exe | Out-Null
           $env:PATH = "$env:SystemRoot\system32;$env:SystemRoot"
           $st = Start-Process $exe -ArgumentList '--selftest', "$PWD\selftest.json" -Wait -PassThru
           $r = Get-Content selftest.json -Raw | ConvertFrom-Json
@@ -130,7 +130,7 @@ jobs:
           $text = (Get-Content (Join-Path $res.output_dir 'local_raw_transcript.txt') -Raw).ToLower()
           "transcript: $text"
           if ($text -notmatch 'ask not what your country can do for you') { throw "unexpected transcript" }
-          Remove-NetFirewallRule -DisplayName "block-whispermedical"
+          Remove-NetFirewallRule -DisplayName "block-meletra"
       - name: Uninstall
         shell: pwsh
         run: |
@@ -139,7 +139,7 @@ jobs:
           $u = Get-ChildItem $dir -Filter 'unins*.exe' | Select-Object -First 1
           Start-Process $u.FullName -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait
           Start-Sleep 5
-          if (Test-Path (Join-Path $dir 'MedicalLectureTranscriber.exe')) { throw "the program is still installed" }
+          if ((Test-Path (Join-Path $dir 'MELETRA.exe')) -or (Test-Path (Join-Path $dir 'MedicalLectureTranscriber.exe'))) { throw "the program is still installed" }
           "uninstalled"
 
   mac:
@@ -167,24 +167,24 @@ jobs:
         if: ${{ env.MAC_VERSION != env.MAC_PRODUCT }}
         run: |
           set +e
-          curl -fsSL --proto '=https' 'https://twonezerotwo-hue.github.io/whispermedical-downloads/install/install-macos.sh' -o /tmp/whispermedical-install.sh && bash /tmp/whispermedical-install.sh
+          curl -fsSL --proto '=https' 'https://twonezerotwo-hue.github.io/whispermedical-downloads/install/install-macos.sh' -o /tmp/meletra-install.sh && bash /tmp/meletra-install.sh
           code=$?
           echo "exit code $code"
           test "$code" -eq 3
-          test ! -d "/Applications/WhisperMedical.app" && test ! -d "/Applications/Medical Lecture Transcriber.app"
+          test ! -d "/Applications/MELETRA.app" && test ! -d "/Applications/WhisperMedical.app" && test ! -d "/Applications/Medical Lecture Transcriber.app"
           echo "Intel Mac $MAC_PRODUCT: not available yet (newest Mac build in the list: $MAC_VERSION) - NOT INSTALLED, as required"
       - name: Install - ONE COMMAND (the exact line of the README; MLT_ALLOW_UNANNOUNCED only lets the test install a verified but unannounced release)
         if: ${{ env.MAC_VERSION == env.MAC_PRODUCT }}
         env:
           MLT_ALLOW_UNANNOUNCED: "1"
         run: |
-          curl -fsSL --proto '=https' 'https://twonezerotwo-hue.github.io/whispermedical-downloads/install/install-macos.sh' -o /tmp/whispermedical-install.sh && bash /tmp/whispermedical-install.sh
-          test -d "/Applications/WhisperMedical.app" || test -d "/Applications/Medical Lecture Transcriber.app"
-          test ! -d "$HOME/Library/Caches/WhisperMedicalInstaller"
+          curl -fsSL --proto '=https' 'https://twonezerotwo-hue.github.io/whispermedical-downloads/install/install-macos.sh' -o /tmp/meletra-install.sh && bash /tmp/meletra-install.sh
+          test -d "/Applications/MELETRA.app" || test -d "/Applications/WhisperMedical.app" || test -d "/Applications/Medical Lecture Transcriber.app"
+          test ! -d "$HOME/Library/Caches/MELETRAInstaller"
       - name: Installed app - offline start and transcription
         if: ${{ env.MAC_VERSION == env.MAC_PRODUCT }}
         run: |
-          APP="/Applications/WhisperMedical.app"; [ -d "$APP" ] || APP="/Applications/Medical Lecture Transcriber.app"; EXE="$APP/Contents/MacOS/MedicalLectureTranscriber"
+          APP="/Applications/MELETRA.app"; [ -d "$APP" ] || APP="/Applications/WhisperMedical.app"; [ -d "$APP" ] || APP="/Applications/Medical Lecture Transcriber.app"; EXE="$APP/Contents/MacOS/MELETRA"; [ -x "$EXE" ] || EXE="$APP/Contents/MacOS/MedicalLectureTranscriber"
           BLOCK='(version 1)(allow default)(deny network*)(allow network* (remote unix-socket))(allow network* (remote ip "localhost:*"))'
           curl -fsSL "$JFK_URL" -o "$RUNNER_TEMP/jfk.flac"
           env -i HOME="$RUNNER_TEMP/home" PATH=/usr/bin:/bin:/usr/sbin:/sbin QT_QPA_PLATFORM=offscreen MLT_ALLOW_MULTIPLE=1 sandbox-exec -p "$BLOCK" "$EXE" --autorun "$RUNNER_TEMP/jfk.flac" --result "$RUNNER_TEMP/result.json" --timeout 1500 --language en || true
@@ -196,4 +196,4 @@ jobs:
           print(text)
           assert "ask not what your country can do for you" in text
           EOF
-          rm -rf "/Applications/WhisperMedical.app" "/Applications/Medical Lecture Transcriber.app"
+          rm -rf "/Applications/MELETRA.app" "/Applications/WhisperMedical.app" "/Applications/Medical Lecture Transcriber.app"

@@ -1,7 +1,7 @@
 """Join the pieces that scripts/stage_upload.py put into a draft release into the final files of a platform (runs on GitHub's network).
 
-    python scripts/assemble.py windows   --work WORKDIR      -> WORKDIR/out/WhisperMedical-Setup-Windows-x64.exe
-    python scripts/assemble.py mac-intel --work WORKDIR      -> WORKDIR/out/WhisperMedical-Intel-Mac-Offline.dmg.part001, .part002
+    python scripts/assemble.py windows   --work WORKDIR      -> WORKDIR/out/MELETRA-Setup-Windows-x64.exe
+    python scripts/assemble.py mac-intel --work WORKDIR      -> WORKDIR/out/<pinned dmg name>.part001, .part002
 
 The final files must be exactly what pins/<platform>.json says: size and SHA-256 of the whole file (and, for the disk image, of each part). Anything else is
 refused and nothing is published. Prints ASSEMBLE_OK and the names to upload as the last lines.

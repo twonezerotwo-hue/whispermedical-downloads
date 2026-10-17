@@ -27,7 +27,7 @@ jobs:
         run: |
           test "$LEGAL" = "yes" || { echo "::error::The owner has not confirmed the open-source notices (repository variable LEGAL_ACKNOWLEDGED=yes)."; exit 1; }
           python3 scripts/sitetool.py set-status "$PLATFORM" ready
-          git config user.name "WhisperMedical"; git config user.email "twonezerotwo-hue@users.noreply.github.com"
+          git config user.name "MELETRA"; git config user.email "twonezerotwo-hue@users.noreply.github.com"
           git add release-manifest.json latest
           git commit -m "$PLATFORM: download button enabled by the owner's confirmation" || true
           git pull --rebase origin main && git push origin HEAD:main

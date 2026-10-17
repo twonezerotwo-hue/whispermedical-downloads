@@ -5,7 +5,7 @@
     python scripts/sitetool.py set-verified windows RUN_URL            record that the anonymous download + real install + start + transcription test passed
     python scripts/sitetool.py set-status windows ready                refused unless the platform was verified (and, if required, the owner confirmed the licence notices in the workflow)
     python scripts/sitetool.py redirects                               rewrite latest/windows/index.html and latest/mac-intel/index.html from the manifest
-    python scripts/sitetool.py set-product 4.0.0                       the version every platform has to reach before its installer is offered (the one-command installers check it)
+    python scripts/sitetool.py set-product 4.1.0 [--name MELETRA]      the version every platform has to reach before its installer is offered (the one-command installers check it); --name sets the product name
     python scripts/sitetool.py validate                                check the manifest for the rules below; exit 1 with the problems listed
 
 A platform button on the landing page is enabled only when its entry says "status": "ready". Nothing here uploads files; it only edits small text files.
@@ -24,13 +24,13 @@ ROOT = Path(__file__).resolve().parent.parent
 MANIFEST = ROOT / "release-manifest.json"
 KEYS = {"windows": "windows", "mac-intel": "mac_intel", "mac_intel": "mac_intel"}
 REDIRECT = """<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><title>WhisperMedical download</title>
+<html lang="en"><head><meta charset="utf-8"><title>MELETRA download</title>
 <meta http-equiv="refresh" content="0; url={url}">
 <link rel="canonical" href="{url}">
-</head><body><p>Starting the download of WhisperMedical for {label} &hellip; if nothing happens, <a href="{url}">click here</a>.</p></body></html>
+</head><body><p>Starting the download of MELETRA for {label} &hellip; if nothing happens, <a href="{url}">click here</a>.</p></body></html>
 """
 PENDING = """<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><title>WhisperMedical</title>
+<html lang="en"><head><meta charset="utf-8"><title>MELETRA</title>
 <meta http-equiv="refresh" content="3; url=../../">
 </head><body><p>The {label} download is not available yet. Going back to the download page &hellip;</p></body></html>
 """
@@ -125,6 +125,7 @@ def main(argv=None) -> int:
     sub.add_parser("validate")
     pv = sub.add_parser("set-product")
     pv.add_argument("version")
+    pv.add_argument("--name", default=None, help="the product name shown by the installers (default: unchanged)")
     s = sub.add_parser("set-status")
     s.add_argument("platform")
     s.add_argument("status", choices=["pending", "uploaded", "ready"])
@@ -136,6 +137,9 @@ def main(argv=None) -> int:
         return 1 if found else 0
     if args.cmd == "set-product":
         data["product_version"] = args.version
+        if args.name:
+            data["product"] = args.name                        # "product" is what the installers have always read; "product_name" is the same value under its clear name
+            data["product_name"] = args.name
         save(data)
         write_redirects(data)
         return 0
@@ -156,6 +160,7 @@ def main(argv=None) -> int:
         now = datetime.now(timezone.utc).isoformat(timespec="seconds")
         data[key]["verification"] = {"passed": True, "run": args.run_url, "date": now}
         data[key]["release_date"] = now[:10]
+        data[key]["published_at"] = now
     elif args.cmd == "set-status":
         key = KEYS[args.platform]
         if args.status == "ready" and not (data.get(key, {}).get("bootstrapper") or {}).get("url"):

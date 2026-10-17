@@ -33,7 +33,7 @@ def download(url: str, dest: Path, size: int) -> None:
     attempts = 0
     while have < size:
         try:
-            request = urllib.request.Request(url, headers={"Range": f"bytes={have}-", "User-Agent": "whispermedical-mirror"})
+            request = urllib.request.Request(url, headers={"Range": f"bytes={have}-", "User-Agent": "meletra-mirror"})
             with urllib.request.urlopen(request, timeout=120) as response, dest.open("ab" if have else "wb") as out:
                 while block := response.read(8 * 1024 * 1024):
                     out.write(block)
