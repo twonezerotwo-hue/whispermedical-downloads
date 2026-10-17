@@ -1,13 +1,14 @@
 {
-  "version": "4.0.0",
+  "version": "4.1.0",
   "setup": {
-    "name": "WhisperMedical-Setup-Windows-x64.exe",
-    "size": 588053297,
-    "sha256": "2c8f8613c94367b496a507d6da9cd46e8b4d4bdd85b8533c5e3858998e4e9c2b"
+    "name": "MELETRA-Setup-Windows-x64.exe",
+    "size": 590802261,
+    "sha256": "8be82bbc89549aa85093dec244608bf29a630ce41057eaaafdb7f649727527f3"
   },
   "source_build": {
+    "commit": "e84d681",
     "tests": {
-      "passed": 1691,
+      "passed": 1925,
       "failed": 0,
       "skipped": 1
     }
