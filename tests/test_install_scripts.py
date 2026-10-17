@@ -295,7 +295,7 @@ def test_the_download_page_is_branded_and_the_privacy_text_is_true_for_every_ver
     for name in ("favicon.ico", "favicon-32.png", "favicon-192.png", "apple-touch-icon.png", "logo.png", "logo-symbol.png"):
         assert (ROOT / "assets" / name).stat().st_size > 400, name
     page, readme = read(ROOT / "index.html"), read(ROOT / "README.md")
-    assert 'rel="icon" href="assets/favicon.ico"' in page and 'src="assets/logo-symbol.png"' in page and "<h1>WhisperMedical</h1>" in page
+    assert 'rel="icon" href="assets/favicon.ico"' in page and 'src="assets/logo-symbol.png"' in page and re.search(r"<h1>(?:<[^>]+>)*Whisper(?:<[^>]+>)*Medical(?:<[^>]+>)*</h1>", page) is not None
     assert "Version 4.1.0 and newer" in readme and "shared with the developer by default" in readme and "Settings → Privacy & Data" in readme
     assert "stay on your computer. The installer" not in readme                                   # the old unqualified claim is gone
     for text in (page, readme):

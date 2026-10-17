@@ -4,18 +4,19 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>WhisperMedical</title>
+<meta name="theme-color" content="#08121f">
 <link rel="icon" href="assets/favicon.ico" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
 <link rel="icon" type="image/png" sizes="192x192" href="assets/favicon-192.png">
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <meta name="description" content="WhisperMedical: offline medical lecture transcription and study. Whisper Large-v3 included. Windows and Intel Mac.">
 <style>
-  :root { --bg:#f4f6f9; --card:#ffffff; --ink:#14213d; --muted:#5b6b82; --line:#dde3ec; --brand:#0e8a8e; --brand-ink:#ffffff; --gold:#9a6f12; --ok:#1c7c4d; --off:#c9d1de; }
-  @media (prefers-color-scheme: dark) { :root { --bg:#0f1624; --card:#17213a; --ink:#eef2fb; --muted:#9db0cf; --line:#2a3858; --brand:#2cc6c6; --brand-ink:#06141f; --gold:#e0b04a; --ok:#4fd08f; --off:#2d3a58; } }
+  :root { color-scheme: dark; --bg:#08121f; --card:#0f1c2f; --ink:#f2eee4; --muted:#a9b8ce; --line:#1f3049; --brand:#2bc4c4; --brand-ink:#04141c; --gold:#e0b04a; --ok:#58cc92; --off:#1b2b44; }
   * { box-sizing: border-box; }
   body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
-  main { max-width:760px; margin:0 auto; padding:48px 20px 64px; }
-  h1 { font-size:2.4rem; margin:0 0 4px; letter-spacing:-0.02em; }
+  main { max-width:760px; margin:0 auto; padding:56px 20px 64px; }
+  h1 { font-size:2.4rem; margin:0 0 4px; letter-spacing:-0.02em; font-weight:650; }
+  h1 .w { color:var(--gold); } h1 .m { color:var(--brand); }
   .head { display:flex; align-items:center; gap:18px; margin-bottom:6px; }
   .head img { width:84px; height:84px; flex:none; }
   .head .sub { margin:0 0 32px; }
@@ -30,7 +31,8 @@
   .meta { color:var(--muted); font-size:.92rem; }
   a.btn { display:block; text-align:center; text-decoration:none; font-weight:650; background:var(--brand); color:var(--brand-ink); padding:13px 16px; border-radius:10px; margin-top:6px; }
   a.btn[aria-disabled="true"] { background:var(--off); color:var(--muted); pointer-events:none; cursor:default; }
-  a.btn:focus-visible { outline:3px solid var(--ink); outline-offset:2px; }
+  a.btn:focus-visible { outline:3px solid var(--gold); outline-offset:2px; }
+  a.btn:hover:not([aria-disabled="true"]) { filter:brightness(1.08); }
   .note { color:var(--muted); font-size:.88rem; min-height:1.3em; }
   ul.feat { list-style:none; padding:0; margin:32px 0 0; display:grid; grid-template-columns:1fr 1fr; gap:6px 24px; }
   @media (max-width:640px) { ul.feat { grid-template-columns:1fr; } }
@@ -50,7 +52,7 @@
   <div class="head">
     <img src="assets/logo-symbol.png" alt="WhisperMedical logo" width="84" height="84">
     <div>
-      <h1>WhisperMedical</h1>
+      <h1><span class="w">Whisper</span><span class="m">Medical</span></h1>
       <p class="sub">Medical lecture transcription &amp; study</p>
     </div>
   </div>
