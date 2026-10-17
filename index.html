@@ -119,6 +119,7 @@
   var isMac = /Mac/i.test(platform) || /Macintosh/i.test(ua);
 
   function gb(bytes) { return (bytes / 1e9).toFixed(1) + " GB"; }
+  function atLeast(v, major, minor) { var p = String(v || "").split(".").map(Number); return p[0] > major || (p[0] === major && p[1] >= minor); }
   // An entry is offered only when it is announced ("ready") AND is the current product version; an older build is never offered as the current one.
   function apply(id, label, entry, extra, product, unavailable) {
     var card = document.getElementById("card-" + id), btn = document.getElementById("btn-" + id), note = document.getElementById("note-" + id), cmd = document.getElementById("cmd-" + id);
@@ -133,7 +134,8 @@
     } else {
       btn.textContent = unavailable;
       btn.setAttribute("aria-disabled", "true");
-      note.textContent = (product ? "MELETRA " + product + " for " + label + " is being prepared" : "This download is being prepared") + " and will appear here when it is complete and verified.";
+      var named = atLeast(product, 4, 1);                                       // the name MELETRA starts with 4.1.0: an older number is not shown under it
+      note.textContent = (named ? "MELETRA " + product + " for " + label : "MELETRA for " + label) + " is being prepared and will appear here when it is complete and verified.";
       if (cmd) cmd.hidden = true;
     }
   }
