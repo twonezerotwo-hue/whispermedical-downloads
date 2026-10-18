@@ -20,6 +20,7 @@ pytestmark = pytest.mark.skipif(sys.platform != "win32", reason="runs the Window
 ROOT = Path(__file__).resolve().parent.parent
 CSC = Path(os.environ.get("WINDIR", r"C:\Windows")) / "Microsoft.NET" / "Framework64" / "v4.0.30319" / "csc.exe"
 MODEL_NAMES = ["config.json", "model.bin", "preprocessor_config.json", "tokenizer.json", "vocabulary.json"]
+PACK_NAMES = ["config.json", "model.bin", "pack.json", "sentencepiece.bpe.model", "shared_vocabulary.json", "LICENSE-M2M100.txt"]
 
 
 def sha(data: bytes) -> str:
@@ -82,14 +83,15 @@ def world(tmp_path_factory):
     assert done.returncode == 0, done.stdout + done.stderr
     setup_bytes = fake_exe.read_bytes()
     model = {n: os.urandom(30_000 if n != "model.bin" else 700_000) for n in MODEL_NAMES}
+    pack = {n: os.urandom(20_000 if n != "model.bin" else 400_000) for n in PACK_NAMES}
     pins = {"version": "9.9.9", "setup_name": "MELETRA-Setup-Windows-x64.exe", "setup_sha256": sha(setup_bytes), "setup_size": len(setup_bytes),
-            "model": {n: {"sha256": sha(b)} for n, b in model.items()}}
+            "model": {n: {"sha256": sha(b)} for n, b in model.items()}, "pack": {n: {"sha256": sha(b)} for n, b in pack.items()}}
     (base / "pins.json").write_text(json.dumps(pins), encoding="utf-8")
     exe = base / "boot_test.exe"
     done = subprocess.run([sys.executable, str(ROOT / "bootstrap" / "windows" / "build.py"), "--test", "--pins", str(base / "pins.json"), "--out", str(exe)],
                           capture_output=True, text=True)
     assert done.returncode == 0, done.stdout + done.stderr
-    return {"base": base, "exe": exe, "setup": setup_bytes, "model": model, "pins": pins}
+    return {"base": base, "exe": exe, "setup": setup_bytes, "model": model, "pack": pack, "pins": pins}
 
 
 def make_manifest(srv, w, status="ready", version="9.9.9", setup_override=None):
@@ -102,8 +104,10 @@ def make_manifest(srv, w, status="ready", version="9.9.9", setup_override=None):
             entry["parts"] = [{"name": "model.bin.part001", "size": half, "sha256": sha(data[:half]), "url": srv.url("/m/model.bin.part001")},
                               {"name": "model.bin.part002", "size": len(data) - half, "sha256": sha(data[half:]), "url": srv.url("/m/model.bin.part002")}]
         files.append(entry)
+    pack = [{"name": n, "size": len(d), "sha256": sha(d), "url": srv.url("/p/" + n)} for n, d in w["pack"].items()]
     return {"version": version, "windows": {"status": status, "version": version, "payload": {
-        "setup": {"name": "MELETRA-Setup-Windows-x64.exe", "size": len(setup), "sha256": sha(setup), "url": srv.url("/setup.exe")}, "model": {"files": files}}}}
+        "setup": {"name": "MELETRA-Setup-Windows-x64.exe", "size": len(setup), "sha256": sha(setup), "url": srv.url("/setup.exe")}, "model": {"files": files},
+        "translation_pack": {"tag": "translation-m2m100-v1", "files": pack}}}}
 
 
 def serve(w, **kw):
@@ -118,14 +122,17 @@ def serve(w, **kw):
     for name, data in w["model"].items():
         if name != "model.bin":
             srv.files["/m/" + name] = data
+    for name, data in w["pack"].items():
+        srv.files["/p/" + name] = data
     return srv
 
 
-def run(w, srv, tmp_path):
+def run(w, srv, tmp_path, *extra):
     marker = tmp_path / "setup_ran.txt"
     env = dict(os.environ, WM_FAKE_MARKER=str(marker))
     done = subprocess.run([str(w["exe"]), "--console", "--no-launch", "--manifest-url", srv.url("/manifest.json"), "--cache-dir", str(tmp_path / "cache"),
-                           "--model-dir", str(tmp_path / "model"), "--setup-args", "/SILENT /SUPPRESSMSGBOXES"], capture_output=True, text=True, env=env, timeout=180)
+                           "--model-dir", str(tmp_path / "model"), "--pack-dir", str(tmp_path / "pack"), "--setup-args", "/SILENT /SUPPRESSMSGBOXES", *extra],
+                          capture_output=True, text=True, env=env, timeout=180)
     return done, marker
 
 
@@ -237,3 +244,73 @@ def test_the_release_build_does_not_accept_plain_http_or_overrides(tmp_path):
         srv.close()
     assert not srv.requests, "the shipped installer must not talk to a local http server"
     assert "reach the download server" in run_.stdout.lower() or "not available" in run_.stdout.lower() or run_.returncode != 0
+
+
+# ------------------------------------------------------------------------------------------------------------------ the optional offline translation pack
+def test_the_translation_pack_is_installed_by_default_and_verified(world, tmp_path):
+    srv = serve(world)
+    try:
+        done, marker = run(world, srv, tmp_path)
+    finally:
+        srv.close()
+    assert done.returncode == 0 and marker.exists(), done.stdout + done.stderr
+    for name, data in world["pack"].items():
+        assert (tmp_path / "pack" / name).read_bytes() == data
+    assert not list((tmp_path / "pack").glob("*.partial")) and "translation pack" in done.stdout.lower()
+
+
+def test_unticked_the_pack_is_not_downloaded(world, tmp_path):
+    srv = serve(world)
+    try:
+        done, marker = run(world, srv, tmp_path, "--no-translation-pack")
+    finally:
+        srv.close()
+    assert done.returncode == 0 and marker.exists(), done.stdout + done.stderr
+    assert not (tmp_path / "pack").exists() and not [r for r in srv.requests if r[0].startswith("/p/")]
+
+
+def test_a_pack_that_cannot_be_downloaded_does_not_stop_the_installation(world, tmp_path):
+    srv = serve(world)
+    del srv.files["/p/model.bin"]
+    try:
+        done, marker = run(world, srv, tmp_path)
+    finally:
+        srv.close()
+    assert done.returncode == 0 and marker.exists(), done.stdout + done.stderr                  # the program is installed; the pack can be added later inside MELETRA
+    assert "not installed" in done.stdout.lower() and not (tmp_path / "pack" / "model.bin").exists()
+
+
+def test_a_corrupted_pack_file_is_deleted_and_never_installed(world, tmp_path):
+    srv = serve(world)
+    srv.files["/p/model.bin"] = srv.files["/p/model.bin"][:-1] + b"\x00"
+    try:
+        done, marker = run(world, srv, tmp_path)
+    finally:
+        srv.close()
+    assert done.returncode == 0 and marker.exists(), done.stdout + done.stderr
+    assert not (tmp_path / "pack" / "model.bin").exists() and "checksum" in done.stdout.lower()
+
+
+def test_a_pack_list_that_does_not_match_the_pinned_values_is_skipped(world, tmp_path):
+    srv = serve(world)
+    manifest = json.loads(srv.files["/manifest.json"])
+    manifest["windows"]["payload"]["translation_pack"]["files"][0]["sha256"] = "0" * 64
+    srv.files["/manifest.json"] = json.dumps(manifest).encode()
+    try:
+        done, marker = run(world, srv, tmp_path)
+    finally:
+        srv.close()
+    assert done.returncode == 0 and marker.exists() and not (tmp_path / "pack").exists(), done.stdout + done.stderr
+    assert "does not match" in done.stdout.lower()
+
+
+def test_an_older_manifest_without_a_pack_installs_as_before(world, tmp_path):
+    srv = serve(world)
+    manifest = json.loads(srv.files["/manifest.json"])
+    del manifest["windows"]["payload"]["translation_pack"]
+    srv.files["/manifest.json"] = json.dumps(manifest).encode()
+    try:
+        done, marker = run(world, srv, tmp_path)
+    finally:
+        srv.close()
+    assert done.returncode == 0 and marker.exists() and not (tmp_path / "pack").exists(), done.stdout + done.stderr

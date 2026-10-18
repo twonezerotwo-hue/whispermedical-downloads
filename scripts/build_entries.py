@@ -30,14 +30,26 @@ def bootstrapper(path: Path, tag: str) -> dict:
     return {"name": path.name, "url": f"{REPO_URL}/{tag}/{path.name}", "size": path.stat().st_size, "sha256": sha256(path)}
 
 
-def windows_entry(pins: dict, layout: dict, boot: Path) -> dict:
+def translation_pack(pack_pins: dict) -> dict:
+    """The optional offline translation pack (a separate public release): every file with its size, SHA-256 and address. The installer installs it only when the student leaves it ticked."""
+    tag = pack_pins["tag"]
+    files = {**pack_pins["output"], **pack_pins.get("extra", {})}
+    return {"tag": tag, "model": pack_pins["model"], "revision": pack_pins["revision"], "licence": pack_pins["licence"],
+            "files": [{"name": n, "size": f["size"], "sha256": f["sha256"], "url": f"{REPO_URL}/{tag}/{n}"} for n, f in sorted(files.items())]}
+
+
+def windows_entry(pins: dict, layout: dict, boot: Path, pack_pins: dict | None = None) -> dict:
     tag = f"windows-v{pins['version']}"
     setup = pins["setup"]
     model_bytes = sum(f["size"] for f in layout["files"])
-    return {"status": "uploaded", "version": pins["version"], "architecture": "x64", "minimum_os": "Windows 10", "download_bytes": setup["size"] + model_bytes,
-            "bootstrapper": bootstrapper(boot, tag),
-            "payload": {"setup": {"name": setup["name"], "size": setup["size"], "sha256": setup["sha256"], "url": f"{REPO_URL}/{tag}/{setup['name']}"},
-                        "model": {"revision": layout["revision"], "files": layout["files"]}}}
+    payload = {"setup": {"name": setup["name"], "size": setup["size"], "sha256": setup["sha256"], "url": f"{REPO_URL}/{tag}/{setup['name']}"},
+               "model": {"revision": layout["revision"], "files": layout["files"]}}
+    entry = {"status": "uploaded", "version": pins["version"], "architecture": "x64", "minimum_os": "Windows 10", "download_bytes": setup["size"] + model_bytes,
+             "bootstrapper": bootstrapper(boot, tag), "payload": payload}
+    if pack_pins:
+        payload["translation_pack"] = translation_pack(pack_pins)
+        entry["optional_download_bytes"] = sum(f["size"] for f in payload["translation_pack"]["files"])
+    return entry
 
 
 def mac_entry(pins: dict, boot: Path) -> dict:
@@ -56,8 +68,10 @@ def main(argv=None) -> int:
         return 2
     boot = Path(argv[1])
     if argv[0] == "windows":
+        pack_file = ROOT / "scripts" / "translation_pack.json"
         entry = windows_entry(json.loads((ROOT / "pins" / "windows.json").read_text(encoding="utf-8")),
-                              json.loads((ROOT / "scripts" / "model_parts.json").read_text(encoding="utf-8")), boot)
+                              json.loads((ROOT / "scripts" / "model_parts.json").read_text(encoding="utf-8")), boot,
+                              json.loads(pack_file.read_text(encoding="utf-8")) if pack_file.is_file() else None)
     else:
         entry = mac_entry(json.loads((ROOT / "pins" / "mac-intel.json").read_text(encoding="utf-8")), boot)
     print(json.dumps(entry, indent=2))

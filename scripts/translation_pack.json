@@ -59,5 +59,11 @@
       "sha256": "7eb5d0ff184c6095c7c10f9911c0aea492250abd12854f9c3d787c64b1c6397e"
     }
   },
-  "validated": "validated before publishing: real translation for 15 language pairs through the program's own translation code, offline, every checksum checked (a conversion made on another machine is not byte-identical, so the build made by this workflow is the one that was tested)"
+  "validated": "validated before publishing: real translation for 15 language pairs through the program's own translation code, offline, every checksum checked (a conversion made on another machine is not byte-identical, so the build made by this workflow is the one that was tested)",
+  "extra": {
+    "LICENSE-M2M100.txt": {
+      "size": 958,
+      "sha256": "8aa7f8e620234e9e88d84a6328c7bb4db7190df74b2dee10e3abb5942c3ba8f2"
+    }
+  }
 }

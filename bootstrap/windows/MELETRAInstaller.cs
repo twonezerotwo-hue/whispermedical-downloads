@@ -126,15 +126,15 @@ namespace MELETRA
     class Engine
     {
         readonly IReporter ui;
-        readonly string cacheDir, modelDir, setupArgs;
-        readonly bool launch;
+        readonly string cacheDir, modelDir, setupArgs, packDir;
+        readonly bool launch, installPack;
         long total, done;
         volatile bool cancelled;
         public string ManifestUrl = Pins.ManifestUrl;
 
-        public Engine(IReporter ui, string cacheDir, string modelDir, string setupArgs, bool launch)
+        public Engine(IReporter ui, string cacheDir, string modelDir, string setupArgs, bool launch, string packDir = null, bool installPack = false)
         {
-            this.ui = ui; this.cacheDir = cacheDir; this.modelDir = modelDir; this.setupArgs = setupArgs; this.launch = launch;
+            this.ui = ui; this.cacheDir = cacheDir; this.modelDir = modelDir; this.setupArgs = setupArgs; this.launch = launch; this.packDir = packDir; this.installPack = installPack;
         }
 
         public void Cancel() { cancelled = true; }
@@ -186,6 +186,26 @@ namespace MELETRA
                 if (pinned == null || pinned != f.Sha256) throw new InstallerException("The speech model list does not match this installer (" + f.Name + ").", false);
             }
 
+            // the optional offline translation pack (4.1.1): only when the student left it ticked, only files whose SHA-256 is compiled into this installer
+            List<Asset> pack = new List<Asset>();
+            if (installPack && packDir != null)
+            {
+                Dictionary<string, object> offered = Obj(payload, "translation_pack");
+                object packFiles;
+                if (offered != null && offered.TryGetValue("files", out packFiles) && packFiles is System.Collections.IEnumerable)
+                {
+                    bool allPinned = true;
+                    foreach (object o in (System.Collections.IEnumerable)packFiles)
+                    {
+                        Asset f = ReadAsset((Dictionary<string, object>)o);
+                        string pinned = Pins.PackSha(f.Name);
+                        if (pinned == null || pinned != f.Sha256) allPinned = false;
+                        pack.Add(f);
+                    }
+                    if (!allPinned) { ui.Log("The translation pack list does not match this installer; it is skipped (you can install it later inside MELETRA)."); pack.Clear(); }
+                }
+            }
+
             // 2. what is already there
             ui.Step("Checking your computer ...");
             Directory.CreateDirectory(modelDir);
@@ -199,8 +219,17 @@ namespace MELETRA
                 if (!good) missingModel.Add(f);
                 Check();
             }
+            List<Asset> missingPack = new List<Asset>();
+            foreach (Asset f in pack)
+            {
+                string target = Path.Combine(packDir, f.Name);
+                bool good = File.Exists(target) && new FileInfo(target).Length == f.Size && Net.Sha256File(target, null) == f.Sha256;
+                if (!good) missingPack.Add(f);
+                Check();
+            }
             long need = 0;
             foreach (Asset f in missingModel) need += f.Size;
+            foreach (Asset f in missingPack) need += f.Size;
             need += setup.Size;
             total = need;
             long free = FreeBytes(cacheDir), freeModel = FreeBytes(modelDir);
@@ -222,6 +251,29 @@ namespace MELETRA
                 string target = Path.Combine(modelDir, f.Name);
                 if (File.Exists(target)) File.Delete(target);
                 File.Move(partial, target);
+            }
+            Check();
+            if (missingPack.Count > 0)
+            {
+                // the pack is optional: if it cannot be downloaded the program is still installed, and MELETRA can install the pack later (Translate to another language)
+                try
+                {
+                    Directory.CreateDirectory(packDir);
+                    foreach (Asset f in missingPack)
+                    {
+                        ui.Step("Downloading the offline translation pack ...");
+                        string partial = Path.Combine(packDir, f.Name + ".partial");
+                        Fetch(f, partial, f.Sha256);
+                        string target = Path.Combine(packDir, f.Name);
+                        if (File.Exists(target)) File.Delete(target);
+                        File.Move(partial, target);
+                    }
+                }
+                catch (InstallerException ex)
+                {
+                    if (cancelled) throw;
+                    ui.Log("The translation pack was not installed (" + ex.Message + "). You can install it later: Translate to another language > Install translation pack.");
+                }
             }
             Check();
 
@@ -401,6 +453,8 @@ namespace MELETRA
     class InstallerForm : Form, IReporter
     {
         Label title, tagline, step, detail, notice;
+        CheckBox packBox;
+        public bool PackTicked { get { return packBox == null || packBox.Checked; } }
         ProgressBar bar;
         Button main, cancel;
         Engine engine;
@@ -410,12 +464,12 @@ namespace MELETRA
         long startTicks, lastDone, lastTicks;
         double speed;
 
-        public InstallerForm(Func<Engine> factory, bool unattended)
+        public InstallerForm(Func<Engine> factory, bool unattended, bool withPack = true)
         {
             this.factory = factory; this.unattended = unattended;
             Text = "MELETRA Installer";
             bool notices = Notice.Applies();
-            ClientSize = new Size(540, notices ? 348 : 262);
+            ClientSize = new Size(540, notices ? 384 : 298);
             FormBorderStyle = FormBorderStyle.FixedDialog; MaximizeBox = false; StartPosition = FormStartPosition.CenterScreen;
             Font = new Font("Segoe UI", 9.5f);
             try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch (Exception) { }
@@ -430,13 +484,14 @@ namespace MELETRA
             title = new Label { UseMnemonic = false, Text = "MELETRA", Font = new Font("Segoe UI", 16f, FontStyle.Bold), Left = textLeft, Top = 12, Width = 440, Height = 32 };
             tagline = new Label { UseMnemonic = false, Text = "Medical Learning & Transcription", ForeColor = Color.DimGray, Left = textLeft, Top = 44, Width = 440, Height = 22 };
             step = new Label { UseMnemonic = false, Text = "MELETRA will download about 3.6 GB (the program and the Whisper Large-v3 speech model), check them and install. Nothing more is downloaded later.", Left = 22, Top = 82, Width = 496, Height = 56 };
-            bar = new ProgressBar { Left = 22, Top = 146, Width = 496, Height = 22, Maximum = 1000, Visible = false };
-            detail = new Label { UseMnemonic = false, Text = "", Left = 22, Top = 174, Width = 496, Height = 22, ForeColor = Color.DimGray };
-            int buttons = notices ? 302 : 216;
-            notice = new Label { UseMnemonic = false, Text = Notice.Text + "\r\n" + Notice.Detail, Left = 22, Top = 204, Width = 496, Height = 88, Visible = notices };
+            packBox = new CheckBox { Text = "Also install the offline translation pack (about 0.5 GB): translate your lectures between 10 languages without internet. Optional - you can add it later in MELETRA.", Left = 22, Top = 140, Width = 496, Height = 38, Checked = withPack, AccessibleName = "Also install the offline translation pack" };
+            bar = new ProgressBar { Left = 22, Top = 182, Width = 496, Height = 22, Maximum = 1000, Visible = false };
+            detail = new Label { UseMnemonic = false, Text = "", Left = 22, Top = 210, Width = 496, Height = 22, ForeColor = Color.DimGray };
+            int buttons = notices ? 338 : 252;
+            notice = new Label { UseMnemonic = false, Text = Notice.Text + "\r\n" + Notice.Detail, Left = 22, Top = 240, Width = 496, Height = 88, Visible = notices };
             main = new Button { Text = "Install", Left = 330, Top = buttons, Width = 90, Height = 30 };
             cancel = new Button { Text = "Cancel", Left = 428, Top = buttons, Width = 90, Height = 30 };
-            Controls.AddRange(new Control[] { title, tagline, step, bar, detail, notice, main, cancel });
+            Controls.AddRange(new Control[] { title, tagline, step, packBox, bar, detail, notice, main, cancel });
             if (symbol != null) Controls.Add(symbol);
             main.Click += delegate { Start(); };
             cancel.Click += delegate { if (engine != null && worker != null && worker.IsAlive) { engine.Cancel(); cancel.Enabled = false; } else Close(); };
@@ -449,7 +504,7 @@ namespace MELETRA
 
         void Start()
         {
-            main.Enabled = false; cancel.Enabled = true; bar.Visible = true; bar.Value = 0;
+            main.Enabled = false; packBox.Enabled = false; cancel.Enabled = true; bar.Visible = true; bar.Value = 0;
             startTicks = lastTicks = DateTime.UtcNow.Ticks; lastDone = 0;
             engine = factory();
             worker = new Thread(delegate()
@@ -500,6 +555,8 @@ namespace MELETRA
             string local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
             string cache = Path.Combine(local, "MELETRAInstaller", "cache");
             string model = Path.Combine(local, "MedicalLectureTranscriber", "models", "whisper-large-v3");
+            string packFolder = Path.Combine(local, "MedicalLectureTranscriber", "models", "translation-m2m100");
+            bool withPack = Array.IndexOf(args, "--no-translation-pack") < 0;
             string setupArgs = "/SILENT /SUPPRESSMSGBOXES /NORESTART";
             string manifest = Pins.ManifestUrl;
 #if TESTBUILD
@@ -509,10 +566,12 @@ namespace MELETRA
                 if (args[i] == "--manifest-url") manifest = args[i + 1];
                 if (args[i] == "--cache-dir") cache = args[i + 1];
                 if (args[i] == "--model-dir") model = args[i + 1];
+                if (args[i] == "--pack-dir") packFolder = args[i + 1];
                 if (args[i] == "--setup-args") setupArgs = args[i + 1];
             }
 #endif
-            Func<IReporter, Engine> make = delegate(IReporter r) { Engine e = new Engine(r, cache, model, setupArgs, launch); e.ManifestUrl = manifest; return e; };
+            InstallerForm form = null;
+            Func<IReporter, Engine> make = delegate(IReporter r) { Engine e = new Engine(r, cache, model, setupArgs, launch, packFolder, form != null ? form.PackTicked : withPack); e.ManifestUrl = manifest; return e; };
             if (console)
             {
                 AttachConsole(-1);                                           // the window-less program writes to the console it was started from
@@ -522,8 +581,7 @@ namespace MELETRA
                 catch (Exception ex) { Console.WriteLine("[error] " + ex.Message); return 1; }
             }
             Application.EnableVisualStyles();
-            InstallerForm form = null;
-            form = new InstallerForm(delegate { return make(form); }, unattended);
+            form = new InstallerForm(delegate { return make(form); }, unattended, withPack);
             Application.Run(form);
             return 0;
         }
