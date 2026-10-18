@@ -1,0 +1,56 @@
+name: build-translation-pack
+
+# Builds the optional offline translation pack (M2M100 418M, MIT licence) on GitHub's servers from the pinned Hugging Face files and publishes it as a public release of THIS
+# repository. The converted files must be byte-identical to the pack that was tested (scripts/translation_pack.json); otherwise nothing is published.
+on:
+  workflow_dispatch:
+    inputs:
+      allow_different:
+        description: "Only look: print the new hashes of a build that differs from the tested pack (nothing is published)"
+        required: false
+        default: "0"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install the converter (the versions the pack was tested with)
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "torch==2.14.1+cpu" --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install "transformers==5.19.0" "sentencepiece==0.2.2" "ctranslate2==4.8.2" "numpy==2.4.6" pyyaml
+          python -c "import torch, transformers, ctranslate2; print(torch.__version__, transformers.__version__, ctranslate2.__version__)"
+      - name: Download, convert, verify
+        env:
+          PACK_ALLOW_DIFFERENT: ${{ github.event.inputs.allow_different }}
+        run: |
+          df -h / | tail -1
+          python scripts/build_translation_pack.py pack_out
+          ls -l pack_out/release
+      - name: Publish (draft first, public only when every asset is there)
+        if: ${{ github.event.inputs.allow_different != '1' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG=translation-m2m100-v1
+          gh release delete "$TAG" --cleanup-tag --yes 2>/dev/null || true
+          NOTES="Optional offline translation pack for MELETRA: facebook/m2m100_418M (MIT licence, see LICENSE-M2M100.txt) converted to CTranslate2 int8. Translates a saved transcript directly between English, Turkish, German, Hungarian, Korean, Chinese, Hindi, Dutch, French and Spanish without internet. Quality is that of a 418M-parameter model: usually understandable, sometimes wrong on rare medical terms; the original transcript is always kept. MELETRA downloads and verifies these files for you (Translate to another language > Install translation pack); you do not need to download them yourself."
+          for attempt in 1 2 3 4 5 6; do
+            gh release create "$TAG" --draft --latest=false --title "MELETRA offline translation pack (M2M100)" --notes "$NOTES" && break
+            echo "create attempt $attempt failed"; sleep $((attempt * 10))
+          done
+          for f in pack_out/release/*; do
+            for attempt in 1 2 3 4 5; do gh release upload "$TAG" "$f" --clobber && break; echo "retry $f"; sleep 15; done
+          done
+          COUNT=$(gh release view "$TAG" --json assets --jq '.assets | length')
+          test "$COUNT" = "7" || { echo "expected 7 assets, found $COUNT"; exit 1; }
+          gh release edit "$TAG" --draft=false --latest=false
+          gh release view "$TAG" --json assets --jq '.assets[] | "\(.name) \(.size)"'
