@@ -1,12 +1,13 @@
 name: build-translation-pack
 
-# Builds the optional offline translation pack (M2M100 418M, MIT licence) on GitHub's servers from the pinned Hugging Face files and publishes it as a public release of THIS
-# repository. The converted files must be byte-identical to the pack that was tested (scripts/translation_pack.json); otherwise nothing is published.
+# Builds the optional offline translation pack (M2M100 418M, MIT licence) on GitHub's servers from the pinned Hugging Face files and uploads it to a DRAFT release of THIS
+# repository. A conversion made on another machine is not byte-identical (measured), so the draft is downloaded, put through tools/validate_translation_pack.py (real inference,
+# checksums, offline) and its hashes are pinned in scripts/translation_pack.json; only then is the draft made public. With "publish" = 1 a draft that matches the pins is published.
 on:
   workflow_dispatch:
     inputs:
-      allow_different:
-        description: "Only look: print the new hashes of a build that differs from the tested pack (nothing is published)"
+      publish:
+        description: "1 = also make the release public (only when the build is byte-identical to the pinned, validated pack)"
         required: false
         default: "0"
 
@@ -30,13 +31,12 @@ jobs:
           python -c "import torch, transformers, ctranslate2; print(torch.__version__, transformers.__version__, ctranslate2.__version__)"
       - name: Download, convert, verify
         env:
-          PACK_ALLOW_DIFFERENT: ${{ github.event.inputs.allow_different }}
+          PACK_ALLOW_DIFFERENT: ${{ github.event.inputs.publish == '1' && '0' || '1' }}
         run: |
           df -h / | tail -1
           python scripts/build_translation_pack.py pack_out
           ls -l pack_out/release
       - name: Publish (draft first, public only when every asset is there)
-        if: ${{ github.event.inputs.allow_different != '1' }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -52,5 +52,5 @@ jobs:
           done
           COUNT=$(gh release view "$TAG" --json assets --jq '.assets | length')
           test "$COUNT" = "7" || { echo "expected 7 assets, found $COUNT"; exit 1; }
-          gh release edit "$TAG" --draft=false --latest=false
+          if [ "${{ github.event.inputs.publish }}" = "1" ]; then gh release edit "$TAG" --draft=false --latest=false; else echo "left as a DRAFT: validate it, pin its hashes, then run again with publish=1"; fi
           gh release view "$TAG" --json assets --jq '.assets[] | "\(.name) \(.size)"'
