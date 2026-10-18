@@ -3,21 +3,61 @@
   "model": "facebook/m2m100_418M",
   "revision": "55c2e61bbf05dfb8d7abccdc3fae6fc8512fd636",
   "licence": "MIT (Copyright (c) Facebook, Inc. and its affiliates)",
-  "converter": {"ctranslate2": "4.8.2", "quantization": "int8"},
+  "converter": {
+    "ctranslate2": "4.8.2",
+    "quantization": "int8"
+  },
   "source": {
-    "pytorch_model.bin": {"size": 1935796948, "sha256": "d907ea45e4e4b9db163382a6674f6218b3c59566fe06d77f4055c208b4e87ed1"},
-    "sentencepiece.bpe.model": {"size": 2423393, "sha256": "d8f7c76ed2a5e0822be39f0a4f95a55eb19c78f4593ce609e2edbc2aea4d380a"},
-    "config.json": {"size": 908, "sha256": "df0ae43e4e4b0d7e3c97b7f447857a70ef6b6a2aa1f145cedbcc730d95f67134"},
-    "vocab.json": {"size": 3708092, "sha256": "b6e77e474aeea8f441363aca7614317c06381f3eacfe10fb9856d5081d1074cc"},
-    "tokenizer_config.json": {"size": 298, "sha256": "a53e6aa83da0b82565ed90c3849056307a9453843322ac5b8439ec4b9497fe48"},
-    "special_tokens_map.json": {"size": 1140, "sha256": "c1a4f86c3874d279ae1b2a05162858db5dd6c61665d84223ed886cbcff08fda6"},
-    "generation_config.json": {"size": 233, "sha256": "aed76366507333ddbb8bd49960f23c82fe6446b3319a46a54befdb45324ccf61"}
+    "pytorch_model.bin": {
+      "size": 1935796948,
+      "sha256": "d907ea45e4e4b9db163382a6674f6218b3c59566fe06d77f4055c208b4e87ed1"
+    },
+    "sentencepiece.bpe.model": {
+      "size": 2423393,
+      "sha256": "d8f7c76ed2a5e0822be39f0a4f95a55eb19c78f4593ce609e2edbc2aea4d380a"
+    },
+    "config.json": {
+      "size": 908,
+      "sha256": "df0ae43e4e4b0d7e3c97b7f447857a70ef6b6a2aa1f145cedbcc730d95f67134"
+    },
+    "vocab.json": {
+      "size": 3708092,
+      "sha256": "b6e77e474aeea8f441363aca7614317c06381f3eacfe10fb9856d5081d1074cc"
+    },
+    "tokenizer_config.json": {
+      "size": 298,
+      "sha256": "a53e6aa83da0b82565ed90c3849056307a9453843322ac5b8439ec4b9497fe48"
+    },
+    "special_tokens_map.json": {
+      "size": 1140,
+      "sha256": "c1a4f86c3874d279ae1b2a05162858db5dd6c61665d84223ed886cbcff08fda6"
+    },
+    "generation_config.json": {
+      "size": 233,
+      "sha256": "aed76366507333ddbb8bd49960f23c82fe6446b3319a46a54befdb45324ccf61"
+    }
   },
   "output": {
-    "config.json": {"size": 233, "sha256": "72901fbd8abd89fb5cf4a388f26fc681f5c4c58a1e1a88b30b879f107270e7ee"},
-    "model.bin": {"size": 490667752, "sha256": "590e9c7e229e84de8affe7b15487660a286d3d76e44a4ca10e33099b198d9a76"},
-    "pack.json": {"size": 662, "sha256": "6595be241fa876279be787d3cf1d081c3b3c9cd7aab6fe34255f3c1eaf843f5c"},
-    "sentencepiece.bpe.model": {"size": 2423393, "sha256": "d8f7c76ed2a5e0822be39f0a4f95a55eb19c78f4593ce609e2edbc2aea4d380a"},
-    "shared_vocabulary.json": {"size": 2924622, "sha256": "18916ac68f9ac8fbd5250ca603dcb3861aac8672924d93a8dadc82eb3147f941"}
-  }
+    "config.json": {
+      "size": 223,
+      "sha256": "8f6496adfc930cbfecbe8281112197705c488fab47d34b4829b06d7f478909af"
+    },
+    "model.bin": {
+      "size": 490667752,
+      "sha256": "a1826980fc5c037e69c7ac94fcb56c03001a66f380eb71863cc0a3879e71421b"
+    },
+    "pack.json": {
+      "size": 641,
+      "sha256": "a1e5d9e5314c26d30f5f64240a2f6694564200d24064fcce3c059443e7abb4d0"
+    },
+    "sentencepiece.bpe.model": {
+      "size": 2423393,
+      "sha256": "d8f7c76ed2a5e0822be39f0a4f95a55eb19c78f4593ce609e2edbc2aea4d380a"
+    },
+    "shared_vocabulary.json": {
+      "size": 2796509,
+      "sha256": "7eb5d0ff184c6095c7c10f9911c0aea492250abd12854f9c3d787c64b1c6397e"
+    }
+  },
+  "validated": "validated before publishing: real translation for 15 language pairs through the program's own translation code, offline, every checksum checked (a conversion made on another machine is not byte-identical, so the build made by this workflow is the one that was tested)"
 }

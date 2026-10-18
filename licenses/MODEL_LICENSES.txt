@@ -29,3 +29,9 @@ Models carried by MELETRA (Windows 4.1.0; the Intel Mac build of 3.1.0 was calle
 
 Nothing is downloaded by the program after installation: the models above are inside the installed program (Mac) or are placed next to your user data by the
 installer (Windows).
+
+5. Offline translation pack (optional download) - Meta / Facebook AI Research M2M100 418M, MIT licence
+   Model: https://huggingface.co/facebook/m2m100_418M (revision 55c2e61bbf05dfb8d7abccdc3fae6fc8512fd636), MIT licence, Copyright (c) Facebook, Inc. and its affiliates.
+   Converted to the CTranslate2 int8 format and published as the release translation-m2m100-v1 of this repository (the full licence text is the file LICENSE-M2M100.txt in that release
+   and next to the installed model). The MIT licence allows use, copying, modification, publication and distribution provided the notice stays with the software.
+   Files and SHA-256 values: scripts/translation_pack.json.
