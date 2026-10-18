@@ -93,7 +93,10 @@ def good_manifest():
 
 def test_the_live_manifest_follows_the_rules():
     data = sitetool.load()
-    assert sitetool.problems(data) == [] and data["product_version"] == "4.0.0"
+    assert sitetool.problems(data) == []
+    version = tuple(int(part) for part in data["product_version"].split("."))
+    assert data["windows"]["version"] == data["product_version"]                       # Windows is the current product version (the Mac build may be older and is then never offered)
+    assert (data.get("product") == "MELETRA") == (version >= (4, 1, 0))                 # the name MELETRA starts with 4.1.0
     for key in ("windows", "mac_intel"):
         assert re.match(r"\d{4}-\d{2}-\d{2}$", data[key]["release_date"])
 
