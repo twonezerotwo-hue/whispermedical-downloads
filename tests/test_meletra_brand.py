@@ -68,14 +68,15 @@ def test_the_release_workflow_stages_verifies_and_only_then_promotes_the_manifes
     flow = read(ROOT / ".github" / "workflows" / "finalize-release.yml")
     start = flow.index("\n  windows-build:")
     windows = flow[start:flow.index("# ====", start)]
-    order = [windows.index(f"\n  {job}:") for job in ("windows-build", "windows-stage", "windows-verify-clean", "windows-verify-upgrade", "windows-promote", "windows-verify", "windows-rollback", "windows-ready")]
+    order = [windows.index(f"\n  {job}:") for job in ("windows-build", "windows-stage", "windows-verify-clean", "windows-verify-upgrade", "windows-verify-upgrade-410", "windows-promote", "windows-verify", "windows-rollback", "windows-ready")]
     assert order == sorted(order)
-    assert "--draft=false --prerelease --latest=false" in windows and 'needs: [windows-build, windows-verify-clean, windows-verify-upgrade]' in windows
+    assert "--draft=false --prerelease --latest=false" in windows and 'needs: [windows-build, windows-verify-clean, windows-verify-upgrade, windows-verify-upgrade-410]' in windows
     stage = windows[:windows.index("\n  windows-promote:")]
     assert "set-platform" not in stage and "release-manifest.json" not in stage      # nothing before the promotion touches the public manifest
     assert 'sitetool.py set-product "$VER" --name MELETRA' in windows and "windows-rollback" in windows and 'git checkout "$BEFORE" -- release-manifest.json latest' in windows
     assert "MELETRA.exe" in windows and "MedicalLectureTranscriber.exe" in windows                         # the upgrade job proves that the old program file is gone
     assert "Install the PUBLIC WhisperMedical 4.0.0" in windows and "user data was lost" in windows
+    assert "Install the PUBLIC MELETRA 4.1.0" in windows and "translation pack file differs from its pin" in windows and "--translate-lecture" in windows        # 4.1.1: upgrade over the last release, the optional pack, re-translation offline
 
 
 def test_sitetool_records_the_product_name_with_the_version(tmp_path, monkeypatch):

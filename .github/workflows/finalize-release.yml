@@ -180,6 +180,16 @@ jobs:
           Get-ChildItem $model | Select-Object Name, Length | Format-Table
           if (-not (Test-Path "$model\model.bin")) { throw "the speech model was not placed" }
           if (Test-Path "$env:LOCALAPPDATA\MELETRAInstaller\cache") { throw "temporary installer files were left behind" }
+          # the optional offline translation pack (ticked by default): every file is the pinned one
+          $pack = "$env:LOCALAPPDATA\MedicalLectureTranscriber\models\translation-m2m100"
+          $tp = Get-Content scripts/translation_pack.json -Raw | ConvertFrom-Json
+          foreach ($f in $tp.output.PSObject.Properties) {
+            $p = Join-Path $pack $f.Name
+            if (-not (Test-Path $p)) { throw "translation pack file missing: $($f.Name)" }
+            $h = (Get-FileHash $p -Algorithm SHA256).Hash.ToLower()
+            if ((Get-Item $p).Length -ne [int64]$f.Value.size -or $h -ne $f.Value.sha256) { throw "translation pack file differs from its pin: $($f.Name)" }
+            "pack $($f.Name): $((Get-Item $p).Length) bytes, sha256 ok"
+          }
       - name: The installed program works with the network blocked (self-test, a short clip is transcribed)
         shell: pwsh
         env:
@@ -205,7 +215,23 @@ jobs:
           $text = (Get-Content (Join-Path $res.output_dir 'local_raw_transcript.txt') -Raw).ToLower()
           "transcript: $text"
           if ($text -notmatch 'ask not what your country can do for you') { throw "unexpected transcript" }
-          foreach ($f in 'local_clean_transcript.txt','medical_corrected_transcript.txt','correction_report.json','medical_quality_report.json') { if (-not (Test-Path (Join-Path $res.output_dir $f))) { throw "missing $f" } }
+          foreach ($f in 'local_clean_transcript.txt','medical_corrected_transcript.txt','correction_report.json','medical_quality_report.json','source_transcript.json') { if (-not (Test-Path (Join-Path $res.output_dir $f))) { throw "missing $f" } }
+          # 4.1.1: the optional offline translation pack is installed and used - the saved transcript is translated again WITHOUT the recording, the speech model or a job (network still blocked)
+          $pack = ($r.checks | Where-Object name -eq 'Translation pack')
+          if ($pack.skipped -or $pack.detail -notmatch 'translated a sentence') { throw "translation pack self-test: $($pack.detail)" }
+          $lang = ($r.checks | Where-Object name -eq 'Languages')
+          if (-not $lang.ok -or $lang.skipped) { throw "languages self-test: $($lang.detail)" }
+          foreach ($target in 'tr', 'de') {
+            $out = "$PWD\translate_$target.json"
+            $t = Start-Process $exe -ArgumentList '--translate-lecture', $res.output_dir, '--to', $target, '--result', $out -Wait -PassThru
+            $tj = Get-Content $out -Raw | ConvertFrom-Json
+            "translation to ${target}: ok=$($tj.ok) status=$($tj.status) seconds=$($tj.seconds) cache=$($tj.from_cache) speech model loaded=$($tj.speech_recogniser_loaded)"
+            if ($t.ExitCode -ne 0 -or -not $tj.ok -or $tj.speech_recogniser_loaded -ne $false -or $tj.from_cache) { throw "translation to $target from the saved transcript failed" }
+            if (-not (Test-Path (Join-Path $res.output_dir "translations\$target.json"))) { throw "translations\$target.json was not saved" }
+          }
+          $again = Start-Process $exe -ArgumentList '--translate-lecture', $res.output_dir, '--to', 'tr', '--result', "$PWD\translate_tr_again.json" -Wait -PassThru
+          $aj = Get-Content "$PWD\translate_tr_again.json" -Raw | ConvertFrom-Json
+          if (-not $aj.from_cache) { throw "asking for Turkish again did not use the saved translation" }
           Remove-NetFirewallRule -DisplayName "block-meletra"
 
   windows-verify-upgrade:
@@ -262,8 +288,64 @@ jobs:
           if ((Get-Content "$data\settings.json" -Raw) -notmatch '"tr"') { throw "settings.json was changed" }
           "upgrade ok: one program (MELETRA), the data of the 4.0.0 user is untouched"
 
+  # The upgrade a user of the LAST release makes: the public MELETRA 4.1.0 is installed with lectures and settings, then the setup of this staged release goes over it.
+  windows-verify-upgrade-410:
+    needs: [windows-build, windows-stage]
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install the PUBLIC MELETRA 4.1.0 and give it lectures and settings (a lecture made by 4.1.0 has no source_transcript.json)
+        shell: pwsh
+        run: |
+          Remove-Item Env:GH_TOKEN, Env:GITHUB_TOKEN -ErrorAction SilentlyContinue
+          $old = "https://github.com/twonezerotwo-hue/whispermedical-downloads/releases/download/windows-v4.1.0/MELETRA-Setup-Windows-x64.exe"
+          curl.exe -fL --retry 8 --retry-all-errors -o old-setup.exe $old
+          $h = (Get-FileHash old-setup.exe -Algorithm SHA256).Hash.ToLower()
+          if ($h -ne '8be82bbc89549aa85093dec244608bf29a630ce41057eaaafdb7f649727527f3') { throw "unexpected 4.1.0 setup ($h)" }
+          $p = Start-Process .\old-setup.exe -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "the 4.1.0 setup ended with $($p.ExitCode)" }
+          $key = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{6F0B7C52-3A1E-4E7D-9C54-8D2A7B1E4F60}_is1'
+          $item = Get-ItemProperty $key
+          "before: $($item.DisplayName) $($item.DisplayVersion) in $($item.InstallLocation)"
+          if ($item.DisplayVersion -ne '4.1.0') { throw "expected MELETRA 4.1.0, found $($item.DisplayVersion)" }
+          $data = "$env:LOCALAPPDATA\MedicalLectureTranscriber"
+          New-Item -ItemType Directory -Force "$data\Transcripts\My lecture", "$data\models\keep-me" | Out-Null
+          Set-Content "$data\Transcripts\My lecture\local_clean_transcript.txt" "the student's transcript"
+          Set-Content "$data\Transcripts\My lecture\local_transcript.json" '{"segments": [{"start": 0, "end": 2, "text": "The patient has a headache.", "language": "en"}]}'
+          Set-Content "$data\settings.json" '{"language": "tr", "theme": "dark"}'
+          Set-Content "$data\models\keep-me\model.bin" "a model"
+      - name: Install the setup of this staged release over it, silently, exactly as the installer program does
+        shell: pwsh
+        run: |
+          Remove-Item Env:GH_TOKEN, Env:GITHUB_TOKEN -ErrorAction SilentlyContinue
+          $pins = Get-Content pins/windows.json -Raw | ConvertFrom-Json
+          $base = "https://github.com/twonezerotwo-hue/whispermedical-downloads/releases/download/windows-v$($pins.version)"
+          curl.exe -fL --retry 8 --retry-all-errors -o new-setup.exe "$base/$($pins.setup.name)"
+          $h = (Get-FileHash new-setup.exe -Algorithm SHA256).Hash.ToLower()
+          if ($h -ne $pins.setup.sha256) { throw "the public setup differs from the pinned SHA-256" }
+          $p = Start-Process .\new-setup.exe -ArgumentList '/SILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "the new setup ended with $($p.ExitCode)" }
+      - name: One program is left - the new MELETRA - and the user's data is untouched
+        shell: pwsh
+        run: |
+          $pins = Get-Content pins/windows.json -Raw | ConvertFrom-Json
+          $uninstall = Get-ChildItem 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall', 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall' -ErrorAction SilentlyContinue | Get-ItemProperty |
+              Where-Object { $_.DisplayName -match 'MELETRA|WhisperMedical|Medical Lecture Transcriber' }
+          $uninstall | Select-Object DisplayName, DisplayVersion, InstallLocation | Format-Table
+          if (@($uninstall).Count -ne 1 -or $uninstall.DisplayName -notlike 'MELETRA*') { throw "Apps & Features must list exactly one program, MELETRA" }
+          if ($uninstall.DisplayVersion -ne $pins.version) { throw "Apps & Features shows $($uninstall.DisplayVersion), expected $($pins.version)" }
+          $exe = Join-Path $uninstall.InstallLocation 'MELETRA.exe'
+          if (-not (Test-Path $exe)) { throw "MELETRA.exe is missing" }
+          if ((Get-Item $exe).VersionInfo.ProductName -ne 'MELETRA') { throw "the exe is not MELETRA" }
+          $data = "$env:LOCALAPPDATA\MedicalLectureTranscriber"
+          foreach ($f in 'Transcripts\My lecture\local_clean_transcript.txt', 'Transcripts\My lecture\local_transcript.json', 'settings.json', 'models\keep-me\model.bin') { if (-not (Test-Path "$data\$f")) { throw "user data was lost: $f" } }
+          if ((Get-Content "$data\settings.json" -Raw) -notmatch '"dark"') { throw "settings.json was changed" }
+          if ((Get-Content "$data\Transcripts\My lecture\local_clean_transcript.txt" -Raw).Trim() -ne "the student's transcript") { throw "a transcript was changed" }
+          "upgrade ok: MELETRA $($pins.version) over 4.1.0, the lectures and settings of the 4.1.0 user are untouched"
+
   windows-promote:
-    needs: [windows-build, windows-verify-clean, windows-verify-upgrade]
+    needs: [windows-build, windows-verify-clean, windows-verify-upgrade, windows-verify-upgrade-410]
     runs-on: ubuntu-latest
     outputs:
       before: ${{ steps.promote.outputs.before }}
@@ -295,6 +377,7 @@ jobs:
     env:
       EXPECT_SHA: ${{ needs.windows-build.outputs.sha }}
     steps:
+      - uses: actions/checkout@v4                                  # scripts/translation_pack.json: the pinned files of the optional translation pack
       - name: Wait until the public manifest shows THIS build's entry (GitHub Pages)
         shell: pwsh
         run: |
@@ -329,6 +412,15 @@ jobs:
           Get-ChildItem $model | Select-Object Name, Length | Format-Table
           if (-not (Test-Path "$model\model.bin")) { throw "the speech model was not placed" }
           if (Test-Path "$env:LOCALAPPDATA\MELETRAInstaller\cache") { throw "temporary installer files were left behind" }
+          $pack = "$env:LOCALAPPDATA\MedicalLectureTranscriber\models\translation-m2m100"
+          $tp = Get-Content scripts/translation_pack.json -Raw | ConvertFrom-Json
+          foreach ($f in $tp.output.PSObject.Properties) {
+            $p = Join-Path $pack $f.Name
+            if (-not (Test-Path $p)) { throw "translation pack file missing: $($f.Name)" }
+            $h = (Get-FileHash $p -Algorithm SHA256).Hash.ToLower()
+            if ((Get-Item $p).Length -ne [int64]$f.Value.size -or $h -ne $f.Value.sha256) { throw "translation pack file differs from its pin: $($f.Name)" }
+          }
+          "translation pack: every pinned file is in place"
       - name: The installed program works with the network blocked
         shell: pwsh
         env:
@@ -354,7 +446,23 @@ jobs:
           $text = (Get-Content (Join-Path $res.output_dir 'local_raw_transcript.txt') -Raw).ToLower()
           "transcript: $text"
           if ($text -notmatch 'ask not what your country can do for you') { throw "unexpected transcript" }
-          foreach ($f in 'local_clean_transcript.txt','medical_corrected_transcript.txt','correction_report.json','medical_quality_report.json') { if (-not (Test-Path (Join-Path $res.output_dir $f))) { throw "missing $f" } }
+          foreach ($f in 'local_clean_transcript.txt','medical_corrected_transcript.txt','correction_report.json','medical_quality_report.json','source_transcript.json') { if (-not (Test-Path (Join-Path $res.output_dir $f))) { throw "missing $f" } }
+          # 4.1.1: the optional offline translation pack is installed and used - the saved transcript is translated again WITHOUT the recording, the speech model or a job (network still blocked)
+          $pack = ($r.checks | Where-Object name -eq 'Translation pack')
+          if ($pack.skipped -or $pack.detail -notmatch 'translated a sentence') { throw "translation pack self-test: $($pack.detail)" }
+          $lang = ($r.checks | Where-Object name -eq 'Languages')
+          if (-not $lang.ok -or $lang.skipped) { throw "languages self-test: $($lang.detail)" }
+          foreach ($target in 'tr', 'de') {
+            $out = "$PWD\translate_$target.json"
+            $t = Start-Process $exe -ArgumentList '--translate-lecture', $res.output_dir, '--to', $target, '--result', $out -Wait -PassThru
+            $tj = Get-Content $out -Raw | ConvertFrom-Json
+            "translation to ${target}: ok=$($tj.ok) status=$($tj.status) seconds=$($tj.seconds) cache=$($tj.from_cache) speech model loaded=$($tj.speech_recogniser_loaded)"
+            if ($t.ExitCode -ne 0 -or -not $tj.ok -or $tj.speech_recogniser_loaded -ne $false -or $tj.from_cache) { throw "translation to $target from the saved transcript failed" }
+            if (-not (Test-Path (Join-Path $res.output_dir "translations\$target.json"))) { throw "translations\$target.json was not saved" }
+          }
+          $again = Start-Process $exe -ArgumentList '--translate-lecture', $res.output_dir, '--to', 'tr', '--result', "$PWD\translate_tr_again.json" -Wait -PassThru
+          $aj = Get-Content "$PWD\translate_tr_again.json" -Raw | ConvertFrom-Json
+          if (-not $aj.from_cache) { throw "asking for Turkish again did not use the saved translation" }
           Remove-NetFirewallRule -DisplayName "block-meletra"
 
   # If the shipped installer program fails its real test, the manifest goes back to what it was before windows-promote: the previous release stays what the public sees.

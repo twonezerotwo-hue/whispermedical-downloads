@@ -76,7 +76,16 @@ function Get-WindowsEntry($Manifest, [bool]$AllowUnannounced) {
 }
 
 function Get-FileSha256([string]$Path) {
-    return (Get-FileHash -Algorithm SHA256 -LiteralPath $Path).Hash.ToLowerInvariant()
+    # Get-FileHash is an auto-loaded cmdlet.  Some otherwise supported Windows PowerShell installations have a broken module search path,
+    # so use the framework implementation directly; the file is still read once and checked with SHA-256 before it can be run.
+    $stream = [IO.File]::OpenRead($Path)
+    try {
+        $algorithm = [Security.Cryptography.SHA256]::Create()
+        try { return ([BitConverter]::ToString($algorithm.ComputeHash($stream))).Replace('-', '').ToLowerInvariant() }
+        finally { $algorithm.Dispose() }
+    } finally {
+        $stream.Dispose()
+    }
 }
 
 function Invoke-WithRetry([scriptblock]$Action, [string]$What, [int]$Tries = 5) {
