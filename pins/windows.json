@@ -1,14 +1,14 @@
 {
-  "version": "4.1.0",
+  "version": "4.1.1",
   "setup": {
     "name": "MELETRA-Setup-Windows-x64.exe",
-    "size": 590802261,
-    "sha256": "8be82bbc89549aa85093dec244608bf29a630ce41057eaaafdb7f649727527f3"
+    "size": 589042769,
+    "sha256": "e6a4109e170d76f1481e6114d6d2b28ae79a83efb078a42af589de6d11b4aa71"
   },
   "source_build": {
-    "commit": "e84d681",
+    "commit": "9198178",
     "tests": {
-      "passed": 1925,
+      "passed": 2130,
       "failed": 0,
       "skipped": 1
     }

@@ -31,6 +31,18 @@ Windows may show "Windows protected your PC" because the installer is **not code
   a restart and after the recording was deleted. Each translation is saved as a tab; asking again opens it at once; a mixed-language lecture is translated segment by segment.
 * New: the **saved source transcript** (`source_transcript.json`) that every translation starts from and never overwrites.
 
+## What was measured before this release
+
+* 2,130 automated tests passed (1 skipped: an optional text-recognition engine that is not installed on the build computer).
+* 17 human-read reference recordings (10 languages; mixed-language, quiet, music-under-speech and sentence-by-sentence cases), run through the real program: the language of every sentence was
+  right in 100 % of the ten single-language recordings and of the Korean-Hindi-English sections, Hindi-English-Hindi and English-lecture-with-brief-Korean-and-Hindi recordings; the weakest cases
+  are a quiet recording (67 %), speech over music (73 %), languages changing every sentence (80 %) and one clip recorded at the noise floor that cannot be recovered (89 % of its recording).
+* The packaged program (the same build as the setup): a 15-step smoke test with real speech recognition on an NVIDIA GPU (Large-v3 float16) and on the CPU, media formats, pause and resume;
+  with the network watched, no connection to an address outside the computer was seen. A 32-second Korean -> Hindi -> English recording was transcribed with every sentence in the right language,
+  the recording was deleted, and the saved transcript was translated to Turkish and German offline in a separate run of the program (4.8 s the first time, instantly the second time).
+* A real 12-minute song compilation: Hindi and English lines were kept and no Korean was found (forced-Korean readings were only Korean translations of other lines, subtitle credits and loops).
+  66 % (GPU, 190 s) and 81 % (CPU, 30 min) of the audible time carries words; the rest is reported as unreadable.
+
 ## Limits, stated plainly
 
 * Singing over loud music: Whisper writes whatever language it is told to expect, so sung lyrics are often misread; MELETRA marks them uncertain and rejects filler, but cannot name the language of
