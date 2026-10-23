@@ -128,7 +128,8 @@
       btn.href = entry.bootstrapper.url;
       btn.textContent = "Download MELETRA for " + label;
       btn.removeAttribute("aria-disabled");
-      note.textContent = "Version " + entry.version + " · downloads about " + gb(entry.download_bytes || 0) + " during installation. " + extra;
+      note.textContent = "Version " + entry.version + " · downloads about " + gb(entry.download_bytes || 0) + " during installation" +
+        (id === "windows" ? ", plus about 0.5 GB for the optional offline translation pack (ticked by default in the installer; untick it to skip)" : "") + ". " + extra;
       if (cmd) cmd.hidden = false;
       if ((id === "windows" && isWindows) || (id === "mac" && isMac)) card.classList.add("rec");
     } else {
