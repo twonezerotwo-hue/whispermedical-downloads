@@ -223,13 +223,13 @@ jobs:
           if (-not $lang.ok -or $lang.skipped) { throw "languages self-test: $($lang.detail)" }
           foreach ($target in 'tr', 'de') {
             $out = "$PWD\translate_$target.json"
-            $t = Start-Process $exe -ArgumentList '--translate-lecture', $res.output_dir, '--to', $target, '--result', $out -Wait -PassThru
+            $t = Start-Process $exe -ArgumentList '--translate-lecture', ('"' + $res.output_dir + '"'), '--to', $target, '--result', $out -Wait -PassThru
             $tj = Get-Content $out -Raw | ConvertFrom-Json
             "translation to ${target}: ok=$($tj.ok) status=$($tj.status) seconds=$($tj.seconds) cache=$($tj.from_cache) speech model loaded=$($tj.speech_recogniser_loaded)"
             if ($t.ExitCode -ne 0 -or -not $tj.ok -or $tj.speech_recogniser_loaded -ne $false -or $tj.from_cache) { throw "translation to $target from the saved transcript failed" }
             if (-not (Test-Path (Join-Path $res.output_dir "translations\$target.json"))) { throw "translations\$target.json was not saved" }
           }
-          $again = Start-Process $exe -ArgumentList '--translate-lecture', $res.output_dir, '--to', 'tr', '--result', "$PWD\translate_tr_again.json" -Wait -PassThru
+          $again = Start-Process $exe -ArgumentList '--translate-lecture', ('"' + $res.output_dir + '"'), '--to', 'tr', '--result', "$PWD\translate_tr_again.json" -Wait -PassThru
           $aj = Get-Content "$PWD\translate_tr_again.json" -Raw | ConvertFrom-Json
           if (-not $aj.from_cache) { throw "asking for Turkish again did not use the saved translation" }
           Remove-NetFirewallRule -DisplayName "block-meletra"
@@ -454,13 +454,13 @@ jobs:
           if (-not $lang.ok -or $lang.skipped) { throw "languages self-test: $($lang.detail)" }
           foreach ($target in 'tr', 'de') {
             $out = "$PWD\translate_$target.json"
-            $t = Start-Process $exe -ArgumentList '--translate-lecture', $res.output_dir, '--to', $target, '--result', $out -Wait -PassThru
+            $t = Start-Process $exe -ArgumentList '--translate-lecture', ('"' + $res.output_dir + '"'), '--to', $target, '--result', $out -Wait -PassThru
             $tj = Get-Content $out -Raw | ConvertFrom-Json
             "translation to ${target}: ok=$($tj.ok) status=$($tj.status) seconds=$($tj.seconds) cache=$($tj.from_cache) speech model loaded=$($tj.speech_recogniser_loaded)"
             if ($t.ExitCode -ne 0 -or -not $tj.ok -or $tj.speech_recogniser_loaded -ne $false -or $tj.from_cache) { throw "translation to $target from the saved transcript failed" }
             if (-not (Test-Path (Join-Path $res.output_dir "translations\$target.json"))) { throw "translations\$target.json was not saved" }
           }
-          $again = Start-Process $exe -ArgumentList '--translate-lecture', $res.output_dir, '--to', 'tr', '--result', "$PWD\translate_tr_again.json" -Wait -PassThru
+          $again = Start-Process $exe -ArgumentList '--translate-lecture', ('"' + $res.output_dir + '"'), '--to', 'tr', '--result', "$PWD\translate_tr_again.json" -Wait -PassThru
           $aj = Get-Content "$PWD\translate_tr_again.json" -Raw | ConvertFrom-Json
           if (-not $aj.from_cache) { throw "asking for Turkish again did not use the saved translation" }
           Remove-NetFirewallRule -DisplayName "block-meletra"
