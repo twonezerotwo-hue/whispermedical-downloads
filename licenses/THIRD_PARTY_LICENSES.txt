@@ -8,7 +8,7 @@ This file lists what is inside the Windows and the Intel Mac packages and under 
 inside the installed program (Windows: next to each library; Mac: MELETRA.app/Contents/Resources/licenses/).
 
 Both platforms
-  faster-whisper (MIT), CTranslate2 (MIT), ONNX Runtime (MIT), tokenizers (Apache-2.0), NumPy (BSD-3-Clause and bundled MIT / Zlib / CC0 parts),
+  faster-whisper (MIT), CTranslate2 (MIT), ONNX Runtime (MIT), tokenizers (Apache-2.0), SentencePiece (Apache-2.0; the tokenizer of the optional translation model), NumPy (BSD-3-Clause and bundled MIT / Zlib / CC0 parts),
   PyYAML (MIT), RapidFuzz (MIT), pypdf (BSD-3-Clause), Pillow (MIT-CMU), soundfile (BSD-3-Clause; libsndfile LGPL-2.1+), keyring (MIT),
   Silero VAD model inside faster-whisper (MIT).
   Qt 6 / PySide6 / shiboken6 (LGPL-3.0): the user interface. The Qt libraries are separate files in the program folder and can be replaced by your own build.
