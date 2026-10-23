@@ -1,27 +1,27 @@
 {
   "schema": 1,
   "product": "MELETRA",
-  "product_version": "4.1.0",
+  "product_version": "4.1.1",
   "version": "3.1.0",
-  "generated": "2026-10-17T22:03:31+00:00",
+  "generated": "2026-10-23T09:15:15+00:00",
   "windows": {
-    "status": "ready",
-    "version": "4.1.0",
+    "status": "uploaded",
+    "version": "4.1.1",
     "architecture": "x64",
     "minimum_os": "Windows 10",
-    "download_bytes": 3681637963,
+    "download_bytes": 3679878471,
     "bootstrapper": {
       "name": "MELETRA-Installer-Windows.exe",
-      "url": "https://github.com/twonezerotwo-hue/whispermedical-downloads/releases/download/windows-v4.1.0/MELETRA-Installer-Windows.exe",
-      "size": 116736,
-      "sha256": "7ea9a7a6651642abfa085fa42772757db84200cb7b64ad03d56aa781197890a3"
+      "url": "https://github.com/twonezerotwo-hue/whispermedical-downloads/releases/download/windows-v4.1.1/MELETRA-Installer-Windows.exe",
+      "size": 120320,
+      "sha256": "64d0ef2eb539eefdc19d96f3b913b839056bd66d061c45d4e4d443e07c099cfc"
     },
     "payload": {
       "setup": {
         "name": "MELETRA-Setup-Windows-x64.exe",
-        "size": 590802261,
-        "sha256": "8be82bbc89549aa85093dec244608bf29a630ce41057eaaafdb7f649727527f3",
-        "url": "https://github.com/twonezerotwo-hue/whispermedical-downloads/releases/download/windows-v4.1.0/MELETRA-Setup-Windows-x64.exe"
+        "size": 589042769,
+        "sha256": "e6a4109e170d76f1481e6114d6d2b28ae79a83efb078a42af589de6d11b4aa71",
+        "url": "https://github.com/twonezerotwo-hue/whispermedical-downloads/releases/download/windows-v4.1.1/MELETRA-Setup-Windows-x64.exe"
       },
       "model": {
         "revision": "edaa852ec7e145841d8ffdb056a99866b5f0a478",
@@ -70,15 +70,53 @@
             "url": "https://github.com/twonezerotwo-hue/whispermedical-downloads/releases/download/model-whisper-large-v3/vocabulary.json"
           }
         ]
+      },
+      "translation_pack": {
+        "tag": "translation-m2m100-v1",
+        "model": "facebook/m2m100_418M",
+        "revision": "55c2e61bbf05dfb8d7abccdc3fae6fc8512fd636",
+        "licence": "MIT (Copyright (c) Facebook, Inc. and its affiliates)",
+        "files": [
+          {
+            "name": "LICENSE-M2M100.txt",
+            "size": 958,
+            "sha256": "8aa7f8e620234e9e88d84a6328c7bb4db7190df74b2dee10e3abb5942c3ba8f2",
+            "url": "https://github.com/twonezerotwo-hue/whispermedical-downloads/releases/download/translation-m2m100-v1/LICENSE-M2M100.txt"
+          },
+          {
+            "name": "config.json",
+            "size": 223,
+            "sha256": "8f6496adfc930cbfecbe8281112197705c488fab47d34b4829b06d7f478909af",
+            "url": "https://github.com/twonezerotwo-hue/whispermedical-downloads/releases/download/translation-m2m100-v1/config.json"
+          },
+          {
+            "name": "model.bin",
+            "size": 490667752,
+            "sha256": "a1826980fc5c037e69c7ac94fcb56c03001a66f380eb71863cc0a3879e71421b",
+            "url": "https://github.com/twonezerotwo-hue/whispermedical-downloads/releases/download/translation-m2m100-v1/model.bin"
+          },
+          {
+            "name": "pack.json",
+            "size": 641,
+            "sha256": "a1e5d9e5314c26d30f5f64240a2f6694564200d24064fcce3c059443e7abb4d0",
+            "url": "https://github.com/twonezerotwo-hue/whispermedical-downloads/releases/download/translation-m2m100-v1/pack.json"
+          },
+          {
+            "name": "sentencepiece.bpe.model",
+            "size": 2423393,
+            "sha256": "d8f7c76ed2a5e0822be39f0a4f95a55eb19c78f4593ce609e2edbc2aea4d380a",
+            "url": "https://github.com/twonezerotwo-hue/whispermedical-downloads/releases/download/translation-m2m100-v1/sentencepiece.bpe.model"
+          },
+          {
+            "name": "shared_vocabulary.json",
+            "size": 2796509,
+            "sha256": "7eb5d0ff184c6095c7c10f9911c0aea492250abd12854f9c3d787c64b1c6397e",
+            "url": "https://github.com/twonezerotwo-hue/whispermedical-downloads/releases/download/translation-m2m100-v1/shared_vocabulary.json"
+          }
+        ]
       }
     },
-    "verification": {
-      "passed": true,
-      "run": "https://github.com/twonezerotwo-hue/whispermedical-downloads/actions/runs/39072941512",
-      "date": "2026-10-17T22:03:10+00:00"
-    },
-    "release_date": "2026-10-17",
-    "published_at": "2026-10-17T22:03:10+00:00"
+    "optional_download_bytes": 495889476
   },
   "mac_intel": {
     "status": "uploaded",
