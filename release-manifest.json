@@ -1,27 +1,27 @@
 {
   "schema": 1,
   "product": "MELETRA",
-  "product_version": "4.1.1",
+  "product_version": "4.1.2",
   "version": "3.1.0",
-  "generated": "2026-10-23T09:19:58+00:00",
+  "generated": "2026-10-25T06:18:01+00:00",
   "windows": {
-    "status": "ready",
-    "version": "4.1.1",
+    "status": "uploaded",
+    "version": "4.1.2",
     "architecture": "x64",
     "minimum_os": "Windows 10",
-    "download_bytes": 3679878471,
+    "download_bytes": 3680102064,
     "bootstrapper": {
       "name": "MELETRA-Installer-Windows.exe",
-      "url": "https://github.com/twonezerotwo-hue/whispermedical-downloads/releases/download/windows-v4.1.1/MELETRA-Installer-Windows.exe",
+      "url": "https://github.com/twonezerotwo-hue/whispermedical-downloads/releases/download/windows-v4.1.2/MELETRA-Installer-Windows.exe",
       "size": 120320,
-      "sha256": "64d0ef2eb539eefdc19d96f3b913b839056bd66d061c45d4e4d443e07c099cfc"
+      "sha256": "be6a2fd71c6ffbbd808243efa966aac42146588d8fd22cc19c0fcdda87709a94"
     },
     "payload": {
       "setup": {
         "name": "MELETRA-Setup-Windows-x64.exe",
-        "size": 589042769,
-        "sha256": "e6a4109e170d76f1481e6114d6d2b28ae79a83efb078a42af589de6d11b4aa71",
-        "url": "https://github.com/twonezerotwo-hue/whispermedical-downloads/releases/download/windows-v4.1.1/MELETRA-Setup-Windows-x64.exe"
+        "size": 589266362,
+        "sha256": "4520de998a1d91c67b4706a0d4daf1c2625999ff2f1d547556a1cad8ec6ccf45",
+        "url": "https://github.com/twonezerotwo-hue/whispermedical-downloads/releases/download/windows-v4.1.2/MELETRA-Setup-Windows-x64.exe"
       },
       "model": {
         "revision": "edaa852ec7e145841d8ffdb056a99866b5f0a478",
@@ -116,14 +116,7 @@
         ]
       }
     },
-    "optional_download_bytes": 495889476,
-    "verification": {
-      "passed": true,
-      "run": "https://github.com/twonezerotwo-hue/whispermedical-downloads/actions/runs/39930076117",
-      "date": "2026-10-23T09:19:58+00:00"
-    },
-    "release_date": "2026-10-23",
-    "published_at": "2026-10-23T09:19:58+00:00"
+    "optional_download_bytes": 495889476
   },
   "mac_intel": {
     "status": "uploaded",
