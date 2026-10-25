@@ -3,9 +3,9 @@
   "product": "MELETRA",
   "product_version": "4.1.2",
   "version": "3.1.0",
-  "generated": "2026-10-25T06:18:01+00:00",
+  "generated": "2026-10-25T06:21:30+00:00",
   "windows": {
-    "status": "uploaded",
+    "status": "ready",
     "version": "4.1.2",
     "architecture": "x64",
     "minimum_os": "Windows 10",
@@ -116,7 +116,14 @@
         ]
       }
     },
-    "optional_download_bytes": 495889476
+    "optional_download_bytes": 495889476,
+    "verification": {
+      "passed": true,
+      "run": "https://github.com/twonezerotwo-hue/whispermedical-downloads/actions/runs/40168218593",
+      "date": "2026-10-25T06:21:30+00:00"
+    },
+    "release_date": "2026-10-25",
+    "published_at": "2026-10-25T06:21:30+00:00"
   },
   "mac_intel": {
     "status": "uploaded",
