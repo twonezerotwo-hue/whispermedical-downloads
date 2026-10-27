@@ -31,22 +31,23 @@ published [release manifest](release-manifest.json), and shows the progress in t
 
 **Upgrading from WhisperMedical or Medical Lecture Transcriber:** install MELETRA over it. The earlier program is replaced; your lectures, transcripts, Study material, archive, settings and models are kept.
 
-### Intel Mac (macOS 12 or newer; not for Apple Silicon M1/M2/M3)
+### Apple Silicon Mac (M1/M2/M3/M4; currently macOS 26 or newer)
 
-**Currently unavailable.** A MELETRA.app for Intel Macs is offered only after it has been built and tested on a real Intel Mac; no older Mac build is ever offered as MELETRA 4.1. When it is available:
+Open the [download page](https://twonezerotwo-hue.github.io/whispermedical-downloads/) and choose **Apple Silicon Mac**. Download both DMG parts and follow the linked
+[installation instructions](downloads/install-mac-apple-silicon.html). This build carries the Apple Silicon-optimized Whisper Large-v3 MLX model.
 
-**One click:** open the [download page](https://twonezerotwo-hue.github.io/whispermedical-downloads/) and click **Download MELETRA for Intel Mac**, unzip, then open **MELETRA Installer**
-(or double-click `Install MELETRA.command` from the same zip).
+### Intel Mac (macOS 12 or newer)
 
-**One command:** open **Terminal** (Spotlight → `Terminal` → Enter), paste this line and press Enter:
+Open the [download page](https://twonezerotwo-hue.github.io/whispermedical-downloads/) and choose **Intel Mac**. Download both DMG parts and follow the linked
+[installation instructions](downloads/install-mac-intel.html).
+
+The earlier Intel installer command remains available for the legacy manifest-driven release:
 
 ```bash
 curl -fsSL --proto '=https' 'https://twonezerotwo-hue.github.io/whispermedical-downloads/install/install-macos.sh' -o /tmp/meletra-install.sh && bash /tmp/meletra-install.sh
 ```
 
-The script ([read it first](install/install-macos.sh)) is the same installer engine the installer app uses. It checks that this is an Intel Mac (an Apple Silicon Mac is told so and
-nothing is installed), downloads the disk image, verifies every SHA-256, copies *MELETRA.app* into Applications (replacing an installed *WhisperMedical.app* or *Medical Lecture Transcriber.app*),
-ejects the image and removes its temporary files.
+The current 4.1.2 Mac downloads are complete offline disk images; no model is fetched after installation.
 
 ### When do the buttons and commands work?
 
@@ -63,13 +64,14 @@ owner confirmed the open-source notices. Until both are true the page says *Not 
 
 ## System requirements
 
-- **Windows** 10/11 x64 (an NVIDIA GPU speeds things up; it also works on the CPU)  ·  **Mac** macOS 12+ on an **Intel** processor (works on the CPU; not available yet).
+- **Windows** 10/11 x64 (an NVIDIA GPU speeds things up; it also works on the CPU) · **Intel Mac** macOS 12+ · **Apple Silicon Mac** macOS 26+.
 - 8 GB RAM or more recommended.
 
 ## First launch
 
 Windows may show *"Windows protected your PC"* because the installer is not code-signed yet (**More info → Run anyway**). Details: [Windows help](downloads/install-windows.html).
-The Mac app (when available) is not notarized by Apple yet: **right-click the app → Open → Open** the first time. Please do not disable Gatekeeper system-wide. Details: [Intel Mac help](downloads/install-mac-intel.html).
+The Mac apps are not notarized by Apple yet: **right-click the app → Open → Open** the first time. Please do not disable Gatekeeper system-wide. Details:
+[Apple Silicon help](downloads/install-mac-apple-silicon.html) or [Intel Mac help](downloads/install-mac-intel.html).
 
 ## Uninstall
 

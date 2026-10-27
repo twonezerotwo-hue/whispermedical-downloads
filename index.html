@@ -9,18 +9,19 @@
 <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
 <link rel="icon" type="image/png" sizes="192x192" href="assets/favicon-192.png">
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
-<meta name="description" content="MELETRA - Medical Learning &amp; Transcription: offline medical lecture transcription and study. Whisper Large-v3 included. Windows 10/11.">
+<meta name="description" content="MELETRA - Medical Learning &amp; Transcription: offline medical lecture transcription and study for Windows, Apple Silicon Mac and Intel Mac. Whisper Large-v3 included.">
 <style>
   :root { color-scheme: dark; --bg:#08121f; --card:#0f1c2f; --ink:#f2eee4; --muted:#a9b8ce; --line:#1f3049; --brand:#2bc4c4; --brand-ink:#04141c; --gold:#e0b04a; --ok:#58cc92; --off:#1b2b44; }
   * { box-sizing: border-box; }
   body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
-  main { max-width:760px; margin:0 auto; padding:56px 20px 64px; }
+  main { max-width:1080px; margin:0 auto; padding:56px 20px 64px; }
   h1 { font-size:2.4rem; margin:0 0 4px; letter-spacing:.14em; font-weight:650; color:var(--gold); }
   .head { display:flex; align-items:center; gap:18px; margin-bottom:6px; }
   .head img { width:84px; height:84px; flex:none; }
   .sub { color:var(--muted); font-size:1.15rem; margin:0 0 32px; }
   .head .sub { margin:0 0 32px; }
-  .grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
+  @media (max-width:900px) { .grid { grid-template-columns:1fr 1fr; } }
   @media (max-width:640px) { .grid { grid-template-columns:1fr; } }
   .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:22px; display:flex; flex-direction:column; gap:10px; }
   .card.rec { border-color:var(--brand); box-shadow:0 0 0 2px color-mix(in srgb, var(--brand) 25%, transparent); }
@@ -74,19 +75,21 @@
         <button type="button" data-copy="code-windows">Copy</button>
       </details>
     </section>
-    <section class="card" id="card-mac">
+    <section class="card" id="card-apple-silicon">
+      <span class="badge">Recommended for this computer</span>
+      <div class="plat">Apple Silicon Mac</div>
+      <div class="meta">macOS 26+ · M1 / M2 / M3 / M4</div>
+      <a class="btn" id="btn-apple-silicon" href="https://github.com/twonezerotwo-hue/meletra/releases/tag/mac-apple-silicon-40313169466">Download for Apple Silicon</a>
+      <div class="note">Version 4.1.2 · 3.2 GB · download both DMG parts. First start: right-click the app and choose Open.</div>
+      <a class="help" href="downloads/install-mac-apple-silicon.html">Installation instructions</a>
+    </section>
+    <section class="card" id="card-intel">
       <span class="badge">Recommended for this computer</span>
       <div class="plat">Intel Mac</div>
-      <div class="meta">macOS 12+ · Intel x86_64 (2019 and similar)</div>
-      <a class="btn" id="btn-mac" href="downloads/install-mac-intel.html" aria-disabled="true">Checking&hellip;</a>
-      <div class="note" id="note-mac"></div>
-      <a class="help" href="downloads/install-mac-intel.html">Intel Mac information</a>
-      <details class="cmd" id="cmd-mac" hidden>
-        <summary>Or install with one command</summary>
-        <div class="where">Open <b>Terminal</b> (Spotlight &rarr; Terminal), paste, press Enter:</div>
-<pre><code id="code-mac">curl -fsSL --proto '=https' 'https://twonezerotwo-hue.github.io/whispermedical-downloads/install/install-macos.sh' -o /tmp/meletra-install.sh &amp;&amp; bash /tmp/meletra-install.sh</code></pre>
-        <button type="button" data-copy="code-mac">Copy</button>
-      </details>
+      <div class="meta">macOS 12+ · Intel x86_64</div>
+      <a class="btn" id="btn-intel" href="https://github.com/twonezerotwo-hue/meletra/releases/tag/mac-intel-40470251885">Download for Intel Mac</a>
+      <div class="note">Version 4.1.2 · 3.1 GB · download both DMG parts. First start: right-click the app and choose Open.</div>
+      <a class="help" href="downloads/install-mac-intel.html">Installation instructions</a>
     </section>
   </div>
 
@@ -104,10 +107,11 @@
   <footer>
     <span>Version <span id="version">&hellip;</span></span>
     <a href="downloads/install-windows.html">Windows help</a>
+    <a href="downloads/install-mac-apple-silicon.html">Apple Silicon Mac help</a>
     <a href="downloads/install-mac-intel.html">Intel Mac help</a>
     <a href="licenses/THIRD_PARTY_LICENSES.txt">Licenses</a>
     <a href="licenses/MODEL_LICENSES.txt">Model licenses</a>
-    <span>Intel Macs only &mdash; Apple Silicon (M1/M2/M3) is not supported by this build.</span>
+    <span>Choose the Mac download that matches the processor shown in Apple menu &rarr; About This Mac.</span>
   </footer>
 </main>
 
@@ -150,9 +154,8 @@
   fetch("release-manifest.json", { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (m) {
     document.getElementById("version").textContent = m.product_version || m.version || "";
     apply("windows", "Windows", m.windows, "The installer is not code-signed yet, so Windows may ask you to confirm.", m.product_version, "Not available yet");
-    apply("mac", "Intel Mac", m.mac_intel, "First start: right-click the app and choose Open.", m.product_version, "Intel Mac — currently unavailable");
   }).catch(function () {
-    [["windows", "Not available yet"], ["mac", "Intel Mac — currently unavailable"]].forEach(function (p) {
+    [["windows", "Not available yet"]].forEach(function (p) {
       var b = document.getElementById("btn-" + p[0]);
       b.textContent = p[1]; b.setAttribute("aria-disabled", "true");
       document.getElementById("note-" + p[0]).textContent = "Could not load the download list. Please try again later.";

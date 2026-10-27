@@ -38,7 +38,8 @@ def read(path: Path) -> str:
 def test_the_readme_and_the_download_page_show_exactly_the_commands_the_workflow_tests():
     readme, page = read(ROOT / "README.md"), read(ROOT / "index.html")
     assert WINDOWS_COMMAND in readme and MAC_COMMAND in readme
-    assert WINDOWS_COMMAND in page and MAC_COMMAND.replace("&", "&amp;") in page
+    assert WINDOWS_COMMAND in page
+    assert "mac-apple-silicon-40313169466" in page and "mac-intel-40470251885" in page
     workflow = read(ROOT / ".github" / "workflows" / "test-install-scripts.yml")
     assert WINDOWS_COMMAND in workflow and "install-windows.ps1" in workflow
     for url in re.findall(r"https://twonezerotwo-hue\.github\.io/whispermedical-downloads/(install/[^'\"\s]+)", WINDOWS_COMMAND + " " + MAC_COMMAND):
@@ -47,7 +48,8 @@ def test_the_readme_and_the_download_page_show_exactly_the_commands_the_workflow
 
 def test_no_placeholder_is_left_in_the_install_instructions_or_scripts():
     pattern = re.compile(r"<[A-Z][A-Z _-]{3,}>|(?i:\bTODO\b|\bPLACEHOLDER\b|example\.com|<EXACT)")
-    for path in (ROOT / "README.md", ROOT / "index.html", PS1, SH, COMMAND, ROOT / "downloads" / "install-windows.html", ROOT / "downloads" / "install-mac-intel.html"):
+    for path in (ROOT / "README.md", ROOT / "index.html", PS1, SH, COMMAND, ROOT / "downloads" / "install-windows.html",
+                 ROOT / "downloads" / "install-mac-intel.html", ROOT / "downloads" / "install-mac-apple-silicon.html"):
         assert not pattern.search(read(path)), path.name
 
 

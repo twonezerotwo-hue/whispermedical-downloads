@@ -22,15 +22,17 @@ def test_the_download_page_is_meletra():
     page = read(ROOT / "index.html")
     assert "<title>MELETRA - Medical Learning &amp; Transcription</title>" in page and "<h1>MELETRA</h1>" in page and "Medical Learning &amp; Transcription" in page
     assert 'src="assets/meletra-symbol.png"' in page and 'alt="MELETRA logo"' in page
-    assert "Download MELETRA for " in page and "Installation instructions" in page and "Intel Mac — currently unavailable" in page
-    assert "meletra-install.ps1" in page and "meletra-install.sh" in page
+    assert "Download MELETRA for " in page and "Installation instructions" in page
+    assert "Apple Silicon Mac" in page and "Intel Mac" in page and "mac-intel-40470251885" in page and "mac-apple-silicon-40313169466" in page
+    assert "meletra-install.ps1" in page
     # the old names: only the sentence that tells people an upgrade keeps their data
     assert old_names(page) == ["WhisperMedical", "Medical Lecture Transcriber"]
     assert "Nothing is shared unless you switch it on" in page
 
 
 def test_the_help_pages_the_readme_and_the_release_notes_say_meletra():
-    for rel in ("downloads/install-windows.html", "downloads/install-mac-intel.html", "README.md", "release-notes/MELETRA-4.1.0.md", "latest/windows/index.html", "latest/mac-intel/index.html"):
+    for rel in ("downloads/install-windows.html", "downloads/install-mac-intel.html", "downloads/install-mac-apple-silicon.html", "README.md",
+                "release-notes/MELETRA-4.1.0.md", "latest/windows/index.html", "latest/mac-intel/index.html", "latest/mac-apple-silicon/index.html"):
         text = read(ROOT / rel)
         assert "MELETRA" in text, rel
         allowed = {"WhisperMedical", "Medical Lecture Transcriber"}
